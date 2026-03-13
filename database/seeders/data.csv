@@ -1,0 +1,91 @@
+﻿EID,Name ,Designation,Department ,Username,Password,Role,Status
+9511044,Drg.Karma Gaylek,Medical superintendent,Administration,9511044,NTMH_123,Medical superintendent,Active
+9901030,Drg.Ugyen Wangchuk,Drungtsho,Acupuncture,9901030,NTMH_123,HoD,Active
+9901033,Drg.Dorji Uden,Drungtsho,Acupuncture,9901033,NTMH_123,Employee,Active
+2001092,Drg.Tharpala,Drungtsho,Acupuncture,2001092,NTMH_123,HoD,Active
+2001089,Drg.Tandin Phurba,Drungtsho,OPD,2001089,NTMH_123,HoD,Active
+201001147,Drg.Karma Ugyen,Drungtsho,Tsubched,201001147,NTMH_123,HoD,Active
+20130101261,Drg.Singye Wangmo,Drungtsho,IPD,20130101261,NTMH_123,HoD,Active
+20150105063,Drg.Ngawang Namgay,Drungtsho,Tsubched,20150105063,NTMH_123,Employee,Active
+20150105038,Drg.Deki Choden,Drungtsho,Tsubched,20150105038,NTMH_123,Employee,Active
+20170107859,Drg.Dorji Gyeltshen,Drungtsho,Acupuncture,20170107859,NTMH_123,Employee,Active
+9901031,Drg.Tashi Wangchuk,Drungtsho,OPD,9901031,NTMH_123,Employee,Active
+20150105043,Drg.Yeshi Choden,Drungtsho,IPD,20150105043,NTMH_123,Employee,Active
+200601130,Drg.Chogyel Dorji,Drungtsho,OPD,200601130,NTMH_123,Employee,Active
+20200116169,Drg.Phubzam,Drungtsho,OPD,20200116169,NTMH_123,Employee,Active
+2.02202E+11,Drg.Pema Wangda,Drungtsho,OPD,2.02202E+11,NTMH_123,Employee,Active
+200206052,Nima Dorji,sMenpa,OPD,200206052,NTMH_123,Employee,Active
+200206055,Tshering Peldon,sMenpa,OPD,200206055,NTMH_123,Employee,Active
+200311038,Phub Dem,sMenpa,OPD,200311038,NTMH_123,Employee,Active
+200507292,Sherab Tharchen,sMenpa,OPD,200507292,NTMH_123,Employee,Active
+200507294,Laxmi Das Rai,sMenpa,OPD,200507294,NTMH_123,Employee,Active
+201107348,Pema Lhadon,sMenpa,OPD,201107348,NTMH_123,Employee,Active
+201107351,Pema Tshomo,sMenpa,IPD,201107351,NTMH_123,Employee,Active
+9705004,Dhendup Zangpo,sMenpa,OPD,9705004,NTMH_123,Employee,Active
+201103008,Sangay,sMenpa,OPD,201103008,NTMH_123,Employee,Active
+20120700817,Pema Dema,sMenpa,OPD,20120700817,NTMH_123,Employee,Active
+20120700819,Kinley Wangchuk,sMenpa,OPD,20120700819,NTMH_123,Employee,Active
+20130802688,Dorjee Pemo,sMenpa,IPD,20130802688,NTMH_123,Employee,Active
+20130802569,Jigme Dorji,sMenpa,OPD,20130802569,NTMH_123,Employee,Active
+20130802690,Sherab Zangmo,sMenpa,OPD,20130802690,NTMH_123,Employee,Active
+20130802573,Yangchen Lham,sMenpa,OPD,20130802573,NTMH_123,Employee,Active
+20151106005,Tshering Phuntsho,sMenpa,IPD,20151106005,NTMH_123,Employee,Active
+20140804702,Jamyang Choeda,sMenpa,OPD,20140804702,NTMH_123,Employee,Active
+20151105953,Passang Bidha,sMenpa,OPD,20151105953,NTMH_123,Employee,Active
+20140804703,Chimi Lhamo,sMenpa,IPD,20140804703,NTMH_123,Employee,Active
+201103001,Tenzin Dorji,sMenpa,IPD,201103001,NTMH_123,Employee,Active
+20170108264,Ugyen,sMenpa,IPD,20170108264,NTMH_123,Employee,Active
+9201094,Ugyen Phuntsho,sMenpa,OPD,9201094,NTMH_123,Employee,Active
+200507295,Tshering Wangchuk,sMenpa,OPD,200507295,NTMH_123,Employee,Active
+20151105967,Dechen Dema,sMenpa,IPD,20151105967,NTMH_123,Employee,Active
+20190112651,Chador Wangmo,sMenpa,OPD,20190112651,NTMH_123,Employee,Active
+201107350,Jinpa Zangmo,sMenpa,OPD,201107350,NTMH_123,Employee,Active
+201103003,Sonam Dorji,sMenpa,OPD,201103003,NTMH_123,Employee,Active
+20190112653,Namgay Choden,sMenpa,OPD,20190112653,NTMH_123,Employee,Active
+20190112655,Kezang Dorji,sMenpa,OPD,20190112655,NTMH_123,Employee,Active
+20180110785,Dhan Bahadur Gurung,sMenpa,OPD,20180110785,NTMH_123,Employee,Active
+20120700823,Phub Wangmo,sMenpa,OPD,20120700823,NTMH_123,Employee,Active
+20200116900,Karma Dema,sMenpa,OPD,20200116900,NTMH_123,Employee,Active
+20120700821,Choki Wangchuk,sMenpa,OPD,20120700821,NTMH_123,Employee,Active
+20140804706,Pema Tobgay,sMenpa,OPD,20140804706,NTMH_123,Employee,Active
+2.02402E+11,Chimi Wangmo,sMenpa,IPD,2.02402E+11,NTMH_123,Employee,Active
+2.02102E+11,Tashi Wangchuk,sMenpa,OPD,2.02102E+11,NTMH_123,Employee,Active
+20200116897,Tshering Peldon,sMenpa,OPD,20200116897,NTMH_123,Employee,Active
+20200116896,Sangay Dema,sMenpa,OPD,20200116896,NTMH_123,Employee,Active
+2.0241E+11,Kinzang,sMenpa,OPD,2.0241E+11,NTMH_123,Employee,Active
+201107349,Dorji Phuntsho,sMenpa,OPD,201107349,NTMH_123,Employee,Active
+200807308,Leki wangdi,sMenpa,OPD,200807308,NTMH_123,Employee,Active
+201107345,Tshering Pem,sMenpa,OPD,201107345,NTMH_123,Employee,Active
+2.02202E+11,Kinga Wangmo,sMenpa,OPD,2.02202E+11,NTMH_123,Employee,Active
+2.02302E+11,Tshewang Peldon,sMenpa,OPD,2.02302E+11,NTMH_123,Employee,Active
+9107014,Dorji Wangmo Lhaki,ADM Assistant,Administration,9107014,NTMH_123,HoD,Active
+200407138,Tashi Yangzom,Electrician,Administration,200407138,NTMH_123,Employee,Active
+201003029,Ugyen Wangdi,Plumber,Administration,201003029,NTMH_123,Employee,Active
+201107157,Gyem Lhamo,Medical Record Technician,Administration,201107157,NTMH_123,Employee,Active
+200307001,Thinley Jamtsho,ADM Assistant,Administration,200307001,NTMH_123,Employee,Active
+201107144,Lhachey Wangmo,Store keeper ,Administration,201107144,NTMH_123,Employee,Active
+20200116120,Biran Gurung,Therapy Aide,OPD,20200116120,NTMH_123,Employee,Active
+201008005,Ugyen Dorji,PhysiotherapyAide,OPD,201008005,NTMH_123,Employee,Active
+200901774,Tashi Wangmo,Front Desk Assistant,Administration,200901774,NTMH_123,Employee,Active
+200204092,Kezang Choden,Front Desk Assistant,Administration,200204092,NTMH_123,Employee,Active
+2009067,Pema Yangtsho,Driver,Administration,2009067,NTMH_123,Employee,Active
+200601143,Sangay Wangmo,Front Desk Assistant,Administration,200601143,NTMH_123,Employee,Active
+10905001754,Neten Zangmo,Helper/Assistant,OPD,10905001754,NTMH_123,Employee,Active
+11512001930,Tsheltrim Zangmo,Gardener,Administration,11512001930,NTMH_123,Employee,Active
+10716000340,Tshering Yuden,Helper/Assistant,OPD,10716000340,NTMH_123,Employee,Active
+11510002457,Gyalmo,Helper/Assistant,OPD,11510002457,NTMH_123,Employee,Active
+10708000781,Rinchen Zangmo,Ward Girl,IPD,10708000781,NTMH_123,Employee,Active
+10202000522,Choki Zangmo,Washer-Woman,OPD,10202000522,NTMH_123,Employee,Active
+11104000319,Sonam Choden,Cook/Baker,IPD,11104000319,NTMH_123,Employee,Active
+11512000082,Choki,Cook/Baker,IPD,11512000082,NTMH_123,Employee,Active
+12002000463,Ugyen Dorji,Security Guard,Administration,12002000463,NTMH_123,Employee,Active
+11504000575,Lobzang Dema,Wet Cleaner,OPD,11504000575,NTMH_123,Employee,Active
+10601000322,Karma Wangmo,Cldearner(Wet/Dry),OPD,10601000322,NTMH_123,Employee,Active
+10701001124,Pema Dema,Wet Cleaner,OPD,10701001124,NTMH_123,Employee,Active
+10715001339,Rinchen Wangmo,WetCleaner,OPD,10715001339,NTMH_123,Employee,Active
+10202000097,Tshering Dorji,Ward Boy,OPD,10202000097,NTMH_123,Employee,Active
+11105004178,Tshering Peldon,Wet Cleaner,OPD,11105004178,NTMH_123,Employee,Active
+10207002262,Dawa Gyelmo,Ward Girl,OPD,10207002262,NTMH_123,Employee,Active
+200903030,Karma Dorji,Front Desk Assistant,Administration,200903030,NTMH_123,Employee,Active
+20240192698,Namgay Zam,PhysiotherapyAide ,OPD,20240192698,NTMH_123,Employee,Active
+2.02406E+11,Tashi Gyaley,PhysiotherapyAide,OPD,2.02406E+11,NTMH_123,Employee,Active

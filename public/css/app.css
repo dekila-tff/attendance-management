@@ -1,0 +1,121 @@
+/* Simple styling for login and dashboards */
+body{
+    font-family: Arial, Helvetica, sans-serif;
+    background:#21405f;
+    margin:0;
+    padding:20px;
+}
+.container{
+    max-width:900px;
+    /* Login-focused, dark-styled UI to match the provided design */
+    :root{
+        --bg-1: #07292d;
+        --bg-2: #0f3b40;
+        --card-bg: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+        --card-border: rgba(255,255,255,0.06);
+        --muted: rgba(255,255,255,0.72);
+        --text: #e6f4f6;
+        --accent-1: #3b82f6; /* vivid blue */
+        --accent-2: #1e40af; /* deep blue */
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+        margin:0;
+        font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+        background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%);
+        color:var(--text);
+        -webkit-font-smoothing:antialiased;
+        -moz-osx-font-smoothing:grayscale;
+    }
+
+    /* subtle diagonal stripes overlay like the screenshot */
+    body::before{
+        content:"";
+        position:absolute;
+        inset:0;
+        background: repeating-linear-gradient(135deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 60px);
+        opacity:0.14;
+        pointer-events:none;
+        mix-blend-mode:overlay;
+    }
+
+    .container{max-width:1100px; margin:0 auto; padding:0 20px}
+
+    /* Centering wrapper for auth pages */
+    .login-wrap{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:40px 20px}
+
+    .card{
+        width:420px;
+        background: var(--card-bg);
+        border-radius:12px;
+        padding:28px;   
+        color:var(--text);
+        border:1px solid var(--card-border);
+        box-shadow: 0 10px 30px rgba(2,6,23,0.6), 0 8px 26px rgba(2,6,23,0.5);
+        backdrop-filter: blur(8px);
+    }
+
+    .brand{font-weight:700; text-align:center; color:var(--text); margin-bottom:6px}
+    h2{font-size:1.35rem; text-align:center; margin:6px 0 8px}
+    .lead{font-size:.95rem; text-align:center; color:var(--muted); margin-bottom:20px}
+
+    .form-group{margin-bottom:14px}
+    label{display:block; font-size:.9rem; margin-bottom:8px; color:var(--muted)}
+    input[type="text"], input[type="username"], input[type="password"], select, textarea{
+        width:100%;
+        padding:12px 14px;
+        border-radius:10px;
+        border:1px solid rgba(255,255,255,0.06);
+        background: rgba(255,255,255,0.02);
+        color:var(--text);
+        font-size:0.96rem;
+    }
+    input::placeholder{color:rgba(255,255,255,0.6)}
+    input:focus{outline:none; box-shadow:0 8px 20px rgba(37,99,235,0.06); border-color:rgba(37,99,235,0.35)}
+
+    /* Checkbox style */
+    .form-row{display:flex; align-items:center; justify-content:space-between; gap:12px}
+    .checkbox{display:flex; align-items:center; gap:8px}
+    .checkbox input{appearance:none; width:18px; height:18px; border-radius:4px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.02); display:inline-block; position:relative}
+    .checkbox input:checked{background:linear-gradient(180deg,var(--accent-1),var(--accent-2)); border-color:transparent}
+    .checkbox input:checked::after{content:""; position:absolute; left:4px; top:2px; width:6px; height:10px; border:2px solid #fff; border-top:none; border-left:none; transform:rotate(40deg)}
+    .checkbox label{font-size:.92rem; color:var(--muted)}
+
+    /* Forgot link */
+    .forgot{color:var(--muted); text-decoration:none}
+    .forgot:hover{text-decoration:underline}
+
+    /* Primary button with glow */
+    .btn{
+        display:inline-block;
+        background: linear-gradient(180deg, var(--accent-1), var(--accent-2));
+        color:#fff;
+        padding:12px 22px;
+        border-radius:14px;
+        font-weight:800;
+        border:none;
+        cursor:pointer;
+        box-shadow:0 16px 36px rgba(30,64,175,0.36), 0 6px 18px rgba(37,99,235,0.18), inset 0 -6px 12px rgba(0,0,0,0.18);
+    }
+    .btn:hover{filter:brightness(1.06); transform:translateY(-1px)}
+
+    .footer-links{display:flex; justify-content:space-between; align-items:center; margin-top:20px; color:var(--muted); font-size:0.9rem}
+    .footer-links a{color:var(--muted); text-decoration:none}
+    .footer-links a:hover{text-decoration:underline}
+
+    /* Small utilities */
+    .text-center{text-align:center}
+    .mb-1{margin-bottom:8px}
+    .mb-2{margin-bottom:16px}
+
+    @media (max-width:480px){
+        .card{width:100%; padding:24px}
+    }
+
+    /* keep compatibility with older classes */
+    .links{margin-top:12px; color:var(--muted); font-size:.95rem}
+
+    /* End */
+}

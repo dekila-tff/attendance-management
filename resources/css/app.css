@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root{
+	--bg-1: #07292d;
+	--bg-2: #0f3b40;
+}
+
+/* subtle stripes overlay similar to prior design */
+body::before{
+	content:"";
+	position:absolute;
+	inset:0;
+	background: repeating-linear-gradient(135deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 60px);
+	opacity:0.14;
+	pointer-events:none;
+	mix-blend-mode:overlay;
+}
+
+/* small helper to replicate the card backdrop effect */
+.card-backdrop{
+	background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+	border: 1px solid rgba(255,255,255,0.06);
+	backdrop-filter: blur(8px);
+}
