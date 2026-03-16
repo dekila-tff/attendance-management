@@ -23,6 +23,7 @@ Route::post('/login', [AuthController::class, 'login'])->name('login.attempt');
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [AuthController::class, 'dashboard'])->name('dashboard');
+    Route::get('/attendance-history', [AuthController::class, 'attendanceHistory'])->name('attendance.history');
     Route::get('/profile', [AuthController::class, 'profile'])->name('profile');
     Route::post('/profile/upload-picture', [AuthController::class, 'uploadProfilePicture'])->name('profile.uploadPicture');
     Route::post('/clock-in', [AuthController::class, 'clockIn'])->name('clock.in');

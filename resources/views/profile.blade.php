@@ -12,7 +12,7 @@
                     <p class="text-white/70">View and manage your profile information</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <a href="#" class="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition">
+                    <a href="{{ route('attendance.history') }}" class="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition">
                         View Attendance History
                     </a>
                     <a href="{{ route('dashboard') }}" class="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition">

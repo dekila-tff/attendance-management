@@ -93,6 +93,35 @@ class AuthController extends Controller
         ]);
     }
 
+    public function attendanceHistory(Request $request)
+    {
+        $validated = $request->validate([
+            'from_date' => 'nullable|date',
+            'to_date' => 'nullable|date|after_or_equal:from_date',
+        ]);
+
+        $user = Auth::user();
+
+        $historyQuery = Attendance::where('user_id', $user->id)
+            ->orderByDesc('date');
+
+        if (!empty($validated['from_date'])) {
+            $historyQuery->whereDate('date', '>=', $validated['from_date']);
+        }
+
+        if (!empty($validated['to_date'])) {
+            $historyQuery->whereDate('date', '<=', $validated['to_date']);
+        }
+
+        $attendances = $historyQuery->paginate(15)->withQueryString();
+
+        return view('attendance_history', [
+            'user' => $user,
+            'attendances' => $attendances,
+            'filters' => $validated,
+        ]);
+    }
+
     public function uploadProfilePicture(Request $request)
     {
         $request->validate([
