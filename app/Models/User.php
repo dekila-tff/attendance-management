@@ -24,7 +24,7 @@ class User extends Authenticatable
         'eid',
         'designation',
         'department',
-        'role',
+        'role_id',
         'status',
         'profile_picture',
     ];
@@ -47,6 +47,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'role_id' => 'integer',
     ];
 
     /**
@@ -55,5 +56,30 @@ class User extends Authenticatable
     public function attendances()
     {
         return $this->hasMany(Attendance::class);
+    }
+
+    /**
+     * Get the leave requests for the user.
+     */
+    public function leaveRequests()
+    {
+        return $this->hasMany(LeaveRequest::class);
+    }
+
+    /**
+     * Get the role that the user belongs to.
+     */
+    public function role()
+    {
+        return $this->belongsTo(Role::class, 'role_id');
+    }
+
+    /**
+     * Get role name from role_id
+     * 1 = MS, 2 = HoD, 3 = Employee
+     */
+    public function getRoleNameAttribute()
+    {
+        return $this->role?->name ?? 'Employee';
     }
 }

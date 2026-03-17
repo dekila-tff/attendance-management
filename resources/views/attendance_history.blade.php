@@ -86,7 +86,9 @@
                                         {{ $attendance->clock_out ? \Carbon\Carbon::parse($attendance->clock_out)->format('h:i A') : '--:--' }}
                                     </td>
                                     <td class="px-6 py-4">
-                                        @if($attendance->clock_out)
+                                        @if($attendance->status === 'leave')
+                                            <span class="text-blue-300">Leave</span>
+                                        @elseif($attendance->clock_out)
                                             <span class="text-green-400">{{ ucfirst($attendance->status) }}</span>
                                         @elseif($attendance->clock_in)
                                             <span class="text-yellow-300">{{ ucfirst($attendance->status) }}</span>

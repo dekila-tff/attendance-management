@@ -156,7 +156,7 @@
                             <p class="text-white/70 text-sm">Role</p>
                         </div>
                         <div class="w-2/3">
-                            <p class="text-lg font-semibold text-green-400">{{ ucfirst($user->role ?? 'Employee') }}</p>
+                            <p class="text-lg font-semibold text-green-400">{{ $user->role_name }}</p>
                         </div>
                     </div>
 

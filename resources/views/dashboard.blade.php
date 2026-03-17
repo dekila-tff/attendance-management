@@ -9,7 +9,7 @@
 <body>
     <h1>Dashboard</h1>
     <p>Welcome, {{ $user->name }}.</p>
-    <p>Role: {{ $user->role }}</p>
+    <p>Role: {{ $user->role_name }}</p>
 
     <form method="POST" action="{{ route('logout') }}">
         @csrf

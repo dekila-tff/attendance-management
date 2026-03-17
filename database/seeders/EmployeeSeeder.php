@@ -42,6 +42,14 @@ class EmployeeSeeder extends Seeder
             $role = $row[6];
             $status = $row[7];
 
+            // Map role to role_id: 1 = MS, 2 = HoD, 3 = Employee
+            $roleId = match(strtolower($role)) {
+                'ms', 'medical superintendent' => 1,
+                'hod' => 2,
+                'employee' => 3,
+                default => 3,
+            };
+
             // Create or update user
             User::updateOrCreate(
                 ['eid' => $eid],
@@ -51,7 +59,7 @@ class EmployeeSeeder extends Seeder
                     'password' => Hash::make($password),
                     'designation' => $designation,
                     'department' => $department,
-                    'role' => $role,
+                    'role_id' => $roleId,
                     'status' => $status,
                 ]
             );

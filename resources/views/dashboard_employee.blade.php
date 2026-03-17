@@ -40,7 +40,9 @@
                     <div>
                         <p class="text-white/70 text-sm mb-2">Status</p>
                         @if($attendance)
-                            @if($attendance->clock_out)
+                            @if($attendance->status === 'leave')
+                                <p class="text-xl font-semibold text-blue-300">Leave</p>
+                            @elseif($attendance->clock_out)
                                 <p class="text-xl font-semibold text-green-400">{{ ucfirst($attendance->status) }}</p>
                             @else
                                 <p class="text-xl font-semibold text-red-400">{{ ucfirst($attendance->status) }}</p>
@@ -135,7 +137,7 @@
                         </button>
                     </form>
                     
-                    <a href="#" class="block px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-center font-medium transition">
+                    <a href="{{ route('leave.create') }}" class="block px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-center font-medium transition">
                         Apply Leave
                     </a>
                     <a href="{{ route('profile') }}" class="block px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-center font-medium transition">

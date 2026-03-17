@@ -6,7 +6,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use App\Models\Attendance;
+use App\Models\LeaveRequest;
+use App\Models\LeaveType;
 use Carbon\Carbon;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -120,6 +123,135 @@ class AuthController extends Controller
             'attendances' => $attendances,
             'filters' => $validated,
         ]);
+    }
+
+    public function showApplyLeave()
+    {
+        $user = Auth::user();
+        $leaveTypes = LeaveType::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+        $balances = $this->getLeaveBalances($user->id, $leaveTypes);
+        $leaveHistory = LeaveRequest::where('user_id', $user->id)
+            ->with('leaveType')
+            ->orderByDesc('created_at')
+            ->get();
+
+        return view('apply_leave', [
+            'user' => $user,
+            'leaveTypes' => $leaveTypes,
+            'balances' => $balances,
+            'leaveHistory' => $leaveHistory,
+        ]);
+    }
+
+    public function applyLeave(Request $request)
+    {
+        $leaveTypes = LeaveType::query()
+            ->where('is_active', true)
+            ->get();
+
+        $rules = [
+            'leave_type' => [
+                'required',
+                Rule::exists('leave_types', 'id')->where(function ($query) {
+                    $query->where('is_active', true);
+                }),
+            ],
+            'submit_to' => ['required', Rule::in(['HoD', 'MS'])],
+            'start_date' => 'required|date|after_or_equal:today',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'total_days' => 'required|numeric|min:0.5',
+            'reason' => 'required|string|max:1000',
+        ];
+
+        // Add prescription validation only for Medical Leave (id = 5)
+        if ($request->filled('leave_type') && $request->input('leave_type') == 5) {
+            $rules['prescription'] = 'required|file|mimes:jpeg,jpg,png,pdf|max:5120';
+        }
+
+        $validated = $request->validate($rules);
+
+        $user = Auth::user();
+        $startDate = Carbon::parse($validated['start_date'])->toDateString();
+        $endDate = Carbon::parse($validated['end_date'])->toDateString();
+        $totalDays = (float) $validated['total_days'];
+
+        $scaledDays = (int) round($totalDays * 10);
+        if ($scaledDays % 5 !== 0) {
+            return back()->withInput()->with('error', 'Total days must be in 0.5 increments (example: 1, 1.5, 2).');
+        }
+
+        $hasOverlappingLeave = LeaveRequest::where('user_id', $user->id)
+            ->where('ms_status', '!=', 'Rejected')
+            ->whereDate('start_date', '<=', $endDate)
+            ->whereDate('end_date', '>=', $startDate)
+            ->exists();
+
+        if ($hasOverlappingLeave) {
+            return back()->withInput()->with('error', 'A leave request already exists for the selected date range.');
+        }
+
+        $selectedLeaveType = $leaveTypes->firstWhere('id', (int) $validated['leave_type']);
+
+        if (!$selectedLeaveType) {
+            return back()->withInput()->with('error', 'Selected leave type is not available.');
+        }
+
+        $balances = $this->getLeaveBalances($user->id, $leaveTypes);
+        $availableBalance = (float) ($balances[$selectedLeaveType->id] ?? 0);
+        $entitlement = (float) $selectedLeaveType->entitlement_days;
+
+        if ($entitlement > 0 && $totalDays > $availableBalance) {
+            return back()->withInput()->with('error', 'Insufficient leave balance for the selected leave type.');
+        }
+
+        $balanceAfterRequest = $entitlement > 0
+            ? max(0, $availableBalance - $totalDays)
+            : 0;
+
+        $prescriptionPath = null;
+        if ($request->hasFile('prescription')) {
+            $prescriptionPath = $request->file('prescription')->store('prescriptions', 'public');
+        }
+
+        LeaveRequest::create([
+            'user_id' => $user->id,
+            'leave_type_id' => $selectedLeaveType->id,
+            'leave_type' => $selectedLeaveType->name,
+            'submit_to' => $validated['submit_to'],
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'total_days' => $totalDays,
+            'balance' => $balanceAfterRequest,
+            'reason' => $validated['reason'],
+            'prescription' => $prescriptionPath,
+            'hod_status' => 'Forwarded',
+            'ms_status' => 'Pending',
+        ]);
+
+        return redirect()->route('leave.create')->with('success', 'Leave request submitted successfully.');
+    }
+
+    private function getLeaveBalances(int $userId, $leaveTypes): array
+    {
+        $usedDaysByTypeId = LeaveRequest::query()
+            ->where('user_id', $userId)
+            ->where('ms_status', 'Approved')
+            ->whereNotNull('leave_type_id')
+            ->selectRaw('leave_type_id, COALESCE(SUM(total_days), 0) as used_days')
+            ->groupBy('leave_type_id')
+            ->pluck('used_days', 'leave_type_id');
+
+        $balances = [];
+
+        foreach ($leaveTypes as $leaveType) {
+            $usedDays = (float) ($usedDaysByTypeId[$leaveType->id] ?? 0);
+            $balances[$leaveType->id] = max(0, (float) $leaveType->entitlement_days - $usedDays);
+        }
+
+        return $balances;
     }
 
     public function uploadProfilePicture(Request $request)
