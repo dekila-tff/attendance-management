@@ -48,8 +48,8 @@
 @endpush
 
 @section('content')
-    <div class="min-h-screen px-4 pb-8 pt-10 sm:px-6 sm:pb-10 sm:pt-12 lg:px-8">
-        <div class="max-w-6xl mx-auto mt-8 rounded-2xl border border-cyan-200/35 bg-[#082f34]/80 p-5 text-white ring-1 ring-white/10 shadow-[0_24px_55px_-24px_rgba(0,0,0,0.55)] backdrop-blur md:mt-16 md:p-8">
+    <div class="min-h-screen px-4 pb-8 pt-10 sm:px-6 sm:pb-10 sm:pt-12 lg:px-8 flex items-center justify-center">
+        <div class="max-w-6xl w-full rounded-2xl border border-cyan-200/35 bg-[#082f34]/80 p-5 text-white ring-1 ring-white/10 shadow-[0_24px_55px_-24px_rgba(0,0,0,0.55)] backdrop-blur md:p-8">
             <div class="mb-5 h-px w-full bg-gradient-to-r from-cyan-200/0 via-cyan-200/45 to-cyan-200/0"></div>
             <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -168,7 +168,9 @@
                                     <td class="px-3 py-3 font-medium">{{ number_format((float) $leave->total_days, 2) }}</td>
                                     <td class="px-3 py-3">{{ $leave->submit_to }}</td>
                                     <td class="px-3 py-3">
-                                        @if(strtolower($leave->hod_status) === 'forwarded')
+                                        @if(strtolower($leave->hod_status) === 'pending')
+                                            <span class="inline-flex rounded-full bg-amber-500/20 px-2.5 py-1 text-xs font-semibold text-amber-200">{{ $leave->hod_status }}</span>
+                                        @elseif(strtolower($leave->hod_status) === 'forwarded')
                                             <span class="inline-flex rounded-full bg-sky-500/20 px-2.5 py-1 text-xs font-semibold text-sky-200">{{ $leave->hod_status }}</span>
                                         @elseif(strtolower($leave->hod_status) === 'approved')
                                             <span class="inline-flex rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-200">{{ $leave->hod_status }}</span>

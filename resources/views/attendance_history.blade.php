@@ -29,7 +29,8 @@
                             name="from_date"
                             type="date"
                             value="{{ $filters['from_date'] ?? '' }}"
-                            class="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            class="h-10 w-full rounded-lg border border-white/20 bg-white/5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            style="height: 40px;"
                         >
                     </div>
                     <div>
@@ -39,16 +40,14 @@
                             name="to_date"
                             type="date"
                             value="{{ $filters['to_date'] ?? '' }}"
-                            class="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            class="h-10 w-full rounded-lg border border-white/20 bg-white/5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            style="height: 40px;"
                         >
                     </div>
-                    <div class="md:col-span-2 flex flex-wrap gap-3">
-                        <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition">
+                    <div class="md:col-span-2 flex items-end" style="align-items: flex-end;">
+                        <button type="submit" class="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-lg border border-white/20 bg-white/5 px-4 text-white font-medium transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/40" style="height: 40px;">
                             Filter
                         </button>
-                        <a href="{{ route('attendance.history') }}" class="px-5 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition">
-                            Reset
-                        </a>
                     </div>
                 </form>
 

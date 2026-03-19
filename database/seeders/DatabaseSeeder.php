@@ -14,6 +14,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(IpdShiftSeeder::class);
+
         // Import employees from CSV
         $this->call(EmployeeSeeder::class);
     }

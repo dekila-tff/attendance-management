@@ -14,6 +14,12 @@ class Attendance extends Model
     protected $fillable = [
         'user_id',
         'date',
+        'shift_name',
+        'shift_start_time',
+        'shift_end_time',
+        'shift_on_time_until',
+        'shift_clock_out_after',
+        'shift_is_overnight',
         'clock_in',
         'clock_out',
         'clockIn_address',
@@ -26,6 +32,7 @@ class Attendance extends Model
         'date' => 'date',
         'clock_in' => 'datetime:H:i:s',
         'clock_out' => 'datetime:H:i:s',
+        'shift_is_overnight' => 'boolean',
     ];
 
     /**

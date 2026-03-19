@@ -22,7 +22,6 @@
                 </div>
                 <form method="POST" action="{{ route('logout') }}" id="logoutForm">
                     @csrf
-                    <input type="hidden" name="location" id="logoutLocation" value="Location not available">
                     <button type="submit" id="logoutButton" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
                         Logout
                     </button>
@@ -32,10 +31,11 @@
             <!-- Today's Status -->
             <div class="card-backdrop rounded-xl p-8 mb-6">
                 <h2 class="text-2xl font-bold text-white mb-4">Today's Attendance</h2>
+                <p class="text-white/70 text-sm mb-4">Current Shift: <span class="text-white font-medium">{{ $shiftName }}</span></p>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                     <div>
                         <p class="text-white/70 text-sm mb-2">Date</p>
-                        <p class="text-xl font-semibold text-white">{{ now()->format('F d, Y') }}</p>
+                        <p class="text-xl font-semibold text-white">{{ ($attendance && $attendance->date) ? \Carbon\Carbon::parse($attendance->date)->format('F d, Y') : now()->format('F d, Y') }}</p>
                     </div>
                     <div>
                         <p class="text-white/70 text-sm mb-2">Status</p>
@@ -130,7 +130,7 @@
                             @if($attendance && $attendance->clock_out)
                                 Clocked Out
                             @elseif($clockOutLocked)
-                                Clock Out (After 3:00 PM)
+                                Clock Out (After {{ $clockOutUnlockTime }})
                             @else
                                 Clock Out
                             @endif
@@ -143,89 +143,14 @@
                     <a href="{{ route('profile') }}" class="block px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-center font-medium transition">
                         My Profile
                     </a>
+
+                    @if($isHod)
+                        <a href="{{ route('hod.leave.requests') }}" class="block px-6 py-4 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-center font-medium transition md:col-span-2">
+                            View Employee Leave Requests
+                        </a>
+                    @endif
                 </div>
             </div>
         </div>
     </div>
-
-    <script>
-        function captureLocation(event, formId, locationFieldId, buttonId) {
-            if (navigator.geolocation) {
-                event.preventDefault();
-                const submitButton = document.getElementById(buttonId);
-                const originalText = submitButton.textContent;
-                submitButton.textContent = 'Getting location...';
-                submitButton.disabled = true;
-
-                navigator.geolocation.getCurrentPosition(
-                    async function(position) {
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
-                        
-                        try {
-                            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-                            const data = await response.json();
-                            const address = data.display_name || `Lat: ${lat}, Lng: ${lng}`;
-                            document.getElementById(locationFieldId).value = address;
-                        } catch (error) {
-                            document.getElementById(locationFieldId).value = `Lat: ${lat}, Lng: ${lng}`;
-                        }
-                        
-                        submitButton.textContent = originalText;
-                        submitButton.disabled = false;
-                        document.getElementById(formId).submit();
-                    },
-                    function(error) {
-                        console.error('Geolocation error:', error);
-                        document.getElementById(locationFieldId).value = 'Location permission denied';
-                        submitButton.textContent = originalText;
-                        submitButton.disabled = false;
-                        document.getElementById(formId).submit();
-                    }
-                );
-                return false;
-            }
-            return true;
-        }
-        
-        function captureLogoutLocation(event) {
-            if (navigator.geolocation) {
-                event.preventDefault();
-                const submitButton = document.getElementById('logoutButton');
-                const originalText = submitButton.textContent;
-                submitButton.textContent = 'Getting location...';
-                submitButton.disabled = true;
-
-                navigator.geolocation.getCurrentPosition(
-                    async function(position) {
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
-                        
-                        // Try to get address from coordinates
-                        try {
-                            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-                            const data = await response.json();
-                            const address = data.display_name || `Lat: ${lat}, Lng: ${lng}`;
-                            document.getElementById('logoutLocation').value = address;
-                        } catch (error) {
-                            document.getElementById('logoutLocation').value = `Lat: ${lat}, Lng: ${lng}`;
-                        }
-                        
-                        submitButton.textContent = originalText;
-                        submitButton.disabled = false;
-                        event.target.submit();
-                    },
-                    function(error) {
-                        console.error('Geolocation error:', error);
-                        document.getElementById('logoutLocation').value = 'Location permission denied';
-                        submitButton.textContent = originalText;
-                        submitButton.disabled = false;
-                        event.target.submit();
-                    }
-                );
-                return false;
-            }
-            return true;
-        }
-    </script>
 @endsection
