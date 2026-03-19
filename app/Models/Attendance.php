@@ -15,8 +15,6 @@ class Attendance extends Model
         'user_id',
         'date',
         'shift_name',
-        'shift_start_time',
-        'shift_end_time',
         'shift_on_time_until',
         'shift_clock_out_after',
         'shift_is_overnight',

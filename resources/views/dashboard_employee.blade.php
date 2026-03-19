@@ -149,6 +149,12 @@
                             View Employee Leave Requests
                         </a>
                     @endif
+
+                    @if($isMs)
+                        <a href="{{ route('ms.leave.requests') }}" class="block px-6 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-center font-medium transition md:col-span-2">
+                            View Employee Leave Requests (Forwarded To MS)
+                        </a>
+                    @endif
                 </div>
             </div>
         </div>

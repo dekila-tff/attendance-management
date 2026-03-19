@@ -80,6 +80,7 @@ class AuthController extends Controller
             'clockOutUnlockTime' => $clockOutAt->format('g:i A'),
             'shiftName' => $shift['name'],
             'isHod' => $this->isHod($user),
+            'isMs' => $this->isMs($user),
         ]);
     }
 
@@ -150,6 +151,66 @@ class AuthController extends Controller
         ]);
 
         return back()->with('success', 'Leave request rejected by HoD.');
+    }
+
+    public function msLeaveRequests(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$this->isMs($user)) {
+            abort(403, 'Only Medical Superintendent can view this page.');
+        }
+
+        $leaveRequests = LeaveRequest::query()
+            ->with(['user', 'leaveType'])
+            ->where('submit_to', 'MS')
+            ->where('hod_status', 'Forwarded')
+            ->orderByDesc('created_at')
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('ms_leave_requests', [
+            'user' => $user,
+            'leaveRequests' => $leaveRequests,
+        ]);
+    }
+
+    public function msLeaveRequestAction(Request $request, LeaveRequest $leaveRequest)
+    {
+        $user = Auth::user();
+
+        if (!$this->isMs($user)) {
+            abort(403, 'Only Medical Superintendent can take leave action.');
+        }
+
+        $validated = $request->validate([
+            'action' => ['required', Rule::in(['approve', 'reject'])],
+        ]);
+
+        $isForwardedToMs = strtoupper(trim((string) $leaveRequest->submit_to)) === 'MS'
+            && strtoupper(trim((string) $leaveRequest->hod_status)) === 'FORWARDED';
+
+        if (!$isForwardedToMs) {
+            abort(403, 'This leave request is not available for MS action.');
+        }
+
+        if (strtolower((string) $leaveRequest->ms_status) !== 'pending') {
+            return back()->with('error', 'This leave request has already been processed by MS.');
+        }
+
+        if ($validated['action'] === 'approve') {
+            $leaveRequest->update([
+                'ms_status' => 'Approved',
+            ]);
+
+            return back()->with('success', 'Leave request approved by MS.');
+        }
+
+        $leaveRequest->update([
+            'ms_status' => 'Rejected',
+        ]);
+
+        return back()->with('success', 'Leave request rejected by MS.');
     }
 
     public function profile()
@@ -369,21 +430,30 @@ class AuthController extends Controller
 
         // Get location from request
         $location = $request->input('location', 'Location not available');
-        
-        Attendance::create([
+
+        $attendancePayload = [
             'user_id' => $user->id,
             'date' => $attendanceDate,
-            'shift_name' => $shift['name'],
-            'shift_start_time' => $shift['start_time'],
-            'shift_end_time' => $shift['end_time'],
-            'shift_on_time_until' => $shift['on_time_until'],
-            'shift_clock_out_after' => $shift['clock_out_after'],
-            'shift_is_overnight' => $shift['is_overnight'],
             'clock_in' => $clockInTime->format('H:i:s'),
             'clockIn_address' => $location,
             'status' => 'present',
             'remarks' => $remarks,
-        ]);
+        ];
+
+        $optionalShiftFields = [
+            'shift_name' => $shift['name'],
+            'shift_on_time_until' => $shift['on_time_until'],
+            'shift_clock_out_after' => $shift['clock_out_after'],
+            'shift_is_overnight' => $shift['is_overnight'],
+        ];
+
+        foreach ($optionalShiftFields as $column => $value) {
+            if ($this->attendanceHasColumn($column)) {
+                $attendancePayload[$column] = $value;
+            }
+        }
+
+        Attendance::create($attendancePayload);
 
         return back()->with('success', 'Clocked in successfully!');
     }
@@ -474,15 +544,15 @@ class AuthController extends Controller
     {
         if ($attendance && $attendance->shift_clock_out_after) {
             $shiftDate = Carbon::parse($attendance->date)->startOfDay();
-            $startTime = $this->normalizeTime((string) ($attendance->shift_start_time ?? '09:00'), '09:00');
-            $endTime = $this->normalizeTime((string) ($attendance->shift_end_time ?? '15:00'), '15:00');
-            $onTimeUntil = $this->normalizeTime((string) ($attendance->shift_on_time_until ?? $startTime), $startTime);
+            $defaultShift = $this->resolveShiftForUser($user, $shiftDate->copy()->setTime(9, 0, 0));
+            $startTime = $defaultShift['start_time'];
+            $endTime = $defaultShift['end_time'];
+            $onTimeUntil = $this->normalizeTime((string) ($attendance->shift_on_time_until ?? $defaultShift['on_time_until']), $defaultShift['on_time_until']);
             $clockOutAfter = $this->normalizeTime((string) $attendance->shift_clock_out_after, '15:00');
             $isOvernight = (bool) $attendance->shift_is_overnight;
-            $startAt = $this->timeForDate($shiftDate, $startTime);
             $clockOutAfterAt = $this->timeForDate($shiftDate, $clockOutAfter);
 
-            if ($isOvernight && $clockOutAfterAt->lte($startAt)) {
+            if ($isOvernight) {
                 $clockOutAfterAt->addDay();
             }
 
@@ -578,6 +648,11 @@ class AuthController extends Controller
         return (int) ($user->role_id ?? 0) === 2;
     }
 
+    private function isMs($user): bool
+    {
+        return (int) ($user->role_id ?? 0) === 1;
+    }
+
     private function normalizeTime(string $time, string $fallback): string
     {
         if (!preg_match('/^\d{1,2}:\d{2}$/', $time)) {
@@ -605,5 +680,17 @@ class AuthController extends Controller
         [$hour, $minute] = array_map('intval', explode(':', $time));
 
         return $date->copy()->setTime($hour, $minute, 0);
+    }
+
+    private function attendanceHasColumn(string $column): bool
+    {
+        static $columnLookup = null;
+
+        if ($columnLookup === null) {
+            $columns = Schema::hasTable('attendances') ? Schema::getColumnListing('attendances') : [];
+            $columnLookup = array_fill_keys($columns, true);
+        }
+
+        return isset($columnLookup[$column]);
     }
 }

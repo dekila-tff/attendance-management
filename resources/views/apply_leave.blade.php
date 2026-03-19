@@ -49,7 +49,7 @@
 
 @section('content')
     <div class="min-h-screen px-4 pb-8 pt-10 sm:px-6 sm:pb-10 sm:pt-12 lg:px-8 flex items-center justify-center">
-        <div class="max-w-6xl w-full rounded-2xl border border-cyan-200/35 bg-[#082f34]/80 p-5 text-white ring-1 ring-white/10 shadow-[0_24px_55px_-24px_rgba(0,0,0,0.55)] backdrop-blur md:p-8">
+        <div class="max-w-6xl w-full rounded-2xl bg-[#082f34]/80 p-5 text-white shadow-[0_24px_55px_-24px_rgba(0,0,0,0.55)] backdrop-blur md:p-8">
             <div class="mb-5 h-px w-full bg-gradient-to-r from-cyan-200/0 via-cyan-200/45 to-cyan-200/0"></div>
             <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -81,7 +81,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('leave.store') }}" class="space-y-5 rounded-xl border border-white/10 bg-[#0a383e]/70 p-4 shadow-sm md:p-6" enctype="multipart/form-data">
+            <form method="POST" action="{{ route('leave.store') }}" class="mb-8 space-y-5 rounded-xl bg-[#0a383e]/70 p-4 shadow-sm md:mb-10 md:p-6" enctype="multipart/form-data">
                 @csrf
 
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
@@ -136,12 +136,12 @@
                     <p class="mt-2 text-xs text-white/60">Accepted formats: JPG, PNG, PDF (Max 5MB)</p>
                 </div>
 
-                <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-8 py-2.5 text-base font-semibold text-white transition hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2 focus:ring-offset-[#0a383e]">
+                <button type="submit" class="mt-6 inline-flex items-center justify-center rounded-lg border border-cyan-300/30 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-500/20 focus:outline-none focus:ring-2 focus:ring-cyan-300/40 focus:ring-offset-2 focus:ring-offset-[#0a383e] md:mt-8">
                     Submit
                 </button>
             </form>
 
-            <div class="mt-8 rounded-xl border border-white/10 bg-[#0a383e]/70 p-4 shadow-sm md:p-6">
+            <div class="rounded-xl bg-[#0a383e]/70 p-4 shadow-sm md:p-6">
                 <h2 class="mb-4 text-xl font-bold text-white md:text-2xl">Leave History</h2>
 
                 <div class="overflow-x-auto">
