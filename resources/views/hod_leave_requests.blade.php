@@ -38,7 +38,6 @@
                                 <th class="px-4 py-3 font-medium">End</th>
                                 <th class="px-4 py-3 font-medium">Days</th>
                                 <th class="px-4 py-3 font-medium">Reason</th>
-                                <th class="px-4 py-3 font-medium">HoD Status</th>
                                 <th class="px-4 py-3 font-medium">MS Status</th>
                                 <th class="px-4 py-3 font-medium">Prescription</th>
                                 <th class="px-4 py-3 font-medium">Action</th>
@@ -53,7 +52,6 @@
                                     <td class="px-4 py-3">{{ \Carbon\Carbon::parse($leave->end_date)->format('Y-m-d') }}</td>
                                     <td class="px-4 py-3">{{ number_format((float) $leave->total_days, 2) }}</td>
                                     <td class="px-4 py-3 max-w-sm break-words">{{ $leave->reason }}</td>
-                                    <td class="px-4 py-3">{{ $leave->hod_status }}</td>
                                     <td class="px-4 py-3">{{ $leave->ms_status }}</td>
                                     <td class="px-4 py-3">
                                         @if($leave->prescription)
@@ -89,7 +87,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="10" class="px-4 py-10 text-center text-white/60">No leave requests submitted to HoD in your department.</td>
+                                    <td colspan="9" class="px-4 py-10 text-center text-white/60">No leave requests submitted to HoD in your department.</td>
                                 </tr>
                             @endforelse
                         </tbody>
