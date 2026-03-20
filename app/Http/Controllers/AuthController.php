@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use App\Models\Department;
+use App\Models\Role;
+use App\Models\Permission;
+use App\Models\UserLeaveBalance;
 use App\Models\Attendance;
 use App\Models\DepartmentShift;
 use App\Models\LeaveRequest;
@@ -18,6 +22,11 @@ class AuthController extends Controller
     public function showLogin()
     {
         return view('login');
+    }
+
+    public function showAdminLogin()
+    {
+        return view('admin_login');
     }
 
     public function login(Request $request)
@@ -42,6 +51,39 @@ class AuthController extends Controller
         return back()->withErrors(['username' => 'The provided credentials do not match our records.'])->withInput($request->only('username'));
     }
 
+    public function adminLogin(Request $request)
+    {
+        $request->validate([
+            'username' => 'required',
+            'password' => 'required',
+        ]);
+
+        $credentials = [
+            'email' => $request->username,
+            'password' => $request->password,
+        ];
+
+        if (!Auth::attempt($credentials, $request->filled('remember'))) {
+            return back()->withErrors([
+                'username' => 'The provided credentials do not match our records.',
+            ])->withInput($request->only('username'));
+        }
+
+        $request->session()->regenerate();
+
+        if (!$this->isAdmin(Auth::user())) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()->withErrors([
+                'username' => 'This account is not allowed to use admin login.',
+            ])->withInput($request->only('username'));
+        }
+
+        return redirect()->intended(route('dashboard'));
+    }
+
     public function logout(Request $request)
     {
         Auth::logout();
@@ -50,9 +92,233 @@ class AuthController extends Controller
         return redirect(route('login'));
     }
 
-    public function dashboard()
+    public function dashboard(Request $request)
     {
         $user = Auth::user();
+
+        if ($this->isAdmin($user)) {
+            $activeSection = (string) $request->query('section', 'roles-permissions');
+            $showCreateUserForm = (bool) $request->boolean('create_user');
+            $attendanceFilters = [
+                'from_date' => (string) $request->query('from_date', ''),
+                'to_date' => (string) $request->query('to_date', ''),
+                'employee' => trim((string) $request->query('employee', '')),
+            ];
+            $userFilters = [
+                'search' => trim((string) $request->query('user_search', '')),
+            ];
+
+            $adminAttendances = null;
+            $managedUsers = null;
+            $editingUser = null;
+            $managedDepartments = null;
+            $departmentHodCandidates = collect();
+            $editingDepartment = null;
+            $assigningDepartment = null;
+            $showAddDepartmentForm = (bool) $request->boolean('add_department');
+            $managedRoles = collect();
+            $managedPermissions = collect();
+            $selectedRoleIdForPermissions = (int) $request->query('assign_role_id', 0);
+            $assignedPermissionIds = [];
+            $managedLeaveTypes = null;
+            $showAddLeaveTypeForm = (bool) $request->boolean('add_leave_type');
+            $editingLeaveType = null;
+            $leaveBalanceEmployees = collect();
+            $leaveBalanceTypes = collect();
+            $leaveBalanceRows = collect();
+            $leaveBalanceYear = (int) Carbon::now()->year;
+
+            if ($activeSection === 'roles-permissions') {
+                $managedRoles = Role::query()->orderByDesc('id')->get();
+                $managedPermissions = Permission::query()->orderByDesc('id')->get();
+
+                if ($selectedRoleIdForPermissions > 0) {
+                    $selectedRole = Role::query()->with('permissions:id')->find($selectedRoleIdForPermissions);
+                    $assignedPermissionIds = $selectedRole
+                        ? $selectedRole->permissions->pluck('id')->map(fn ($id) => (int) $id)->all()
+                        : [];
+                }
+            }
+
+            if ($activeSection === 'department-hod-management') {
+                $this->syncDepartmentsFromUsers();
+
+                $managedDepartments = Department::query()
+                    ->with('hod:id,name')
+                    ->orderBy('name')
+                    ->paginate(15, ['*'], 'departments_page')
+                    ->withQueryString();
+
+                $departmentHodCandidates = User::query()
+                    ->where('role_id', 2)
+                    ->whereRaw('LOWER(COALESCE(status, "active")) = ?', ['active'])
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'eid', 'department']);
+
+                $editDepartmentId = (int) $request->query('edit_department', 0);
+                if ($editDepartmentId > 0) {
+                    $editingDepartment = Department::find($editDepartmentId);
+                }
+
+                $assignDepartmentId = (int) $request->query('assign_department', 0);
+                if ($assignDepartmentId > 0) {
+                    $assigningDepartment = Department::find($assignDepartmentId);
+                }
+            }
+
+            if ($activeSection === 'user-management') {
+                $usersQuery = User::query()
+                    ->with('role')
+                    ->orderBy('id');
+
+                if ($userFilters['search'] !== '') {
+                    $term = $userFilters['search'];
+
+                    $usersQuery->where(function ($query) use ($term) {
+                        $query->where('name', 'like', "%{$term}%")
+                            ->orWhere('eid', 'like', "%{$term}%")
+                            ->orWhere('email', 'like', "%{$term}%")
+                            ->orWhere('department', 'like', "%{$term}%")
+                            ->orWhere('designation', 'like', "%{$term}%");
+                    });
+                }
+
+                $managedUsers = $usersQuery->paginate(15, ['*'], 'users_page')->withQueryString();
+
+                $editUserId = (int) $request->query('edit_user', 0);
+                if ($editUserId > 0) {
+                    $editingUser = User::find($editUserId);
+                }
+            }
+
+            if ($activeSection === 'leave-types') {
+                $managedLeaveTypes = LeaveType::query()
+                    ->orderBy('id')
+                    ->paginate(20, ['*'], 'leave_types_page')
+                    ->withQueryString();
+
+                $editLeaveTypeId = (int) $request->query('edit_leave_type', 0);
+                if ($editLeaveTypeId > 0) {
+                    $editingLeaveType = LeaveType::find($editLeaveTypeId);
+                }
+            }
+
+            if ($activeSection === 'leave-balance') {
+                $leaveBalanceEmployees = User::query()
+                    ->whereRaw('LOWER(COALESCE(status, "active")) = ?', ['active'])
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'eid', 'department']);
+
+                $leaveBalanceTypes = LeaveType::query()
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'code', 'entitlement_days', 'is_active']);
+
+                $employeeIds = $leaveBalanceEmployees->pluck('id')->all();
+                $leaveTypeIds = $leaveBalanceTypes->pluck('id')->all();
+
+                if (!empty($employeeIds) && !empty($leaveTypeIds)) {
+                    $customBalances = UserLeaveBalance::query()
+                        ->whereIn('user_id', $employeeIds)
+                        ->whereIn('leave_type_id', $leaveTypeIds)
+                        ->get(['user_id', 'leave_type_id', 'max_per_year', 'adjustment'])
+                        ->keyBy(fn ($row) => (int) $row->user_id . ':' . (int) $row->leave_type_id);
+
+                    $usedDaysByPair = LeaveRequest::query()
+                        ->where('ms_status', 'Approved')
+                        ->whereYear('start_date', $leaveBalanceYear)
+                        ->whereIn('user_id', $employeeIds)
+                        ->whereIn('leave_type_id', $leaveTypeIds)
+                        ->selectRaw('user_id, leave_type_id, COALESCE(SUM(total_days), 0) as used_days')
+                        ->groupBy('user_id', 'leave_type_id')
+                        ->get()
+                        ->keyBy(fn ($row) => (int) $row->user_id . ':' . (int) $row->leave_type_id);
+
+                    $rows = [];
+
+                    foreach ($leaveBalanceEmployees as $employee) {
+                        foreach ($leaveBalanceTypes as $leaveType) {
+                            $pairKey = (int) $employee->id . ':' . (int) $leaveType->id;
+                            $customBalance = $customBalances->get($pairKey);
+                            $maxPerYear = $customBalance
+                                ? (float) $customBalance->max_per_year
+                                : (float) $leaveType->entitlement_days;
+                            $adjustment = $customBalance ? (float) $customBalance->adjustment : 0;
+                            $used = (float) optional($usedDaysByPair->get($pairKey))->used_days;
+                            $remaining = max(0, $maxPerYear + $adjustment - $used);
+
+                            $rows[] = [
+                                'employee_name' => (string) $employee->name,
+                                'leave_type_name' => (string) $leaveType->name,
+                                'max_per_year' => $maxPerYear,
+                                'used_days' => $used,
+                                'remaining_days' => $remaining,
+                                'year' => $leaveBalanceYear,
+                            ];
+                        }
+                    }
+
+                    $leaveBalanceRows = collect($rows)
+                        ->sortBy(fn ($row) => strtolower($row['employee_name'] . '|' . $row['leave_type_name']))
+                        ->values();
+                }
+            }
+
+            if ($activeSection === 'attendance-logs') {
+                $attendanceQuery = Attendance::query()
+                    ->with(['user:id,name,eid,department'])
+                    ->orderByDesc('date')
+                    ->orderByDesc('clock_in');
+
+                if ($attendanceFilters['from_date'] !== '') {
+                    $attendanceQuery->whereDate('date', '>=', $attendanceFilters['from_date']);
+                }
+
+                if ($attendanceFilters['to_date'] !== '') {
+                    $attendanceQuery->whereDate('date', '<=', $attendanceFilters['to_date']);
+                }
+
+                if ($attendanceFilters['employee'] !== '') {
+                    $employee = $attendanceFilters['employee'];
+
+                    $attendanceQuery->whereHas('user', function ($query) use ($employee) {
+                        $query->where('name', 'like', "%{$employee}%")
+                            ->orWhere('eid', 'like', "%{$employee}%")
+                            ->orWhere('email', 'like', "%{$employee}%");
+                    });
+                }
+
+                $adminAttendances = $attendanceQuery->paginate(20)->withQueryString();
+            }
+
+            return view('dashboard_admin', [
+                'user' => $user,
+                'isMs' => $this->isMs($user),
+                'activeSection' => $activeSection,
+                'attendanceFilters' => $attendanceFilters,
+                'userFilters' => $userFilters,
+                'adminAttendances' => $adminAttendances,
+                'managedUsers' => $managedUsers,
+                'editingUser' => $editingUser,
+                'showCreateUserForm' => $showCreateUserForm,
+                'managedDepartments' => $managedDepartments,
+                'departmentHodCandidates' => $departmentHodCandidates,
+                'editingDepartment' => $editingDepartment,
+                'assigningDepartment' => $assigningDepartment,
+                'showAddDepartmentForm' => $showAddDepartmentForm,
+                'managedRoles' => $managedRoles,
+                'managedPermissions' => $managedPermissions,
+                'selectedRoleIdForPermissions' => $selectedRoleIdForPermissions,
+                'assignedPermissionIds' => $assignedPermissionIds,
+                'managedLeaveTypes' => $managedLeaveTypes,
+                'showAddLeaveTypeForm' => $showAddLeaveTypeForm,
+                'editingLeaveType' => $editingLeaveType,
+                'leaveBalanceEmployees' => $leaveBalanceEmployees,
+                'leaveBalanceTypes' => $leaveBalanceTypes,
+                'leaveBalanceRows' => $leaveBalanceRows,
+                'leaveBalanceYear' => $leaveBalanceYear,
+            ]);
+        }
         
         // Get today's attendance record
         $today = Carbon::today();
@@ -82,6 +348,476 @@ class AuthController extends Controller
             'isHod' => $this->isHod($user),
             'isMs' => $this->isMs($user),
         ]);
+    }
+
+    public function adminUpdateUser(Request $request, User $user)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can update users.');
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'eid' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('users', 'eid')->ignore($user->id),
+            ],
+            'designation' => 'nullable|string|max:255',
+            'department' => 'nullable|string|max:255',
+            'role_id' => ['required', Rule::in([1, 2, 3])],
+            'status' => ['required', Rule::in(['Active', 'Inactive'])],
+        ]);
+
+        if ($user->id === $admin->id && $validated['status'] === 'Inactive') {
+            return back()->with('error', 'You cannot deactivate your own account.');
+        }
+
+        $user->update([
+            'name' => $validated['name'],
+            'eid' => $validated['eid'] !== '' ? $validated['eid'] : null,
+            'designation' => $validated['designation'],
+            'department' => $validated['department'],
+            'role_id' => (int) $validated['role_id'],
+            'status' => ucfirst(strtolower((string) $validated['status'])),
+        ]);
+
+        return redirect()
+            ->route('dashboard', ['section' => 'user-management'])
+            ->with('success', 'User updated successfully.');
+    }
+
+    public function adminStoreUser(Request $request)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can create users.');
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email',
+            'eid' => 'nullable|string|max:255|unique:users,eid',
+            'designation' => 'nullable|string|max:255',
+            'department' => 'nullable|string|max:255',
+            'role_id' => ['required', Rule::in([1, 2, 3])],
+            'status' => ['required', Rule::in(['Active', 'Inactive'])],
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        User::create([
+            'name' => $validated['name'],
+            'email' => strtolower((string) $validated['email']),
+            'eid' => $validated['eid'] !== '' ? $validated['eid'] : null,
+            'designation' => $validated['designation'],
+            'department' => $validated['department'],
+            'role_id' => (int) $validated['role_id'],
+            'status' => ucfirst(strtolower((string) $validated['status'])),
+            'password' => $validated['password'],
+        ]);
+
+        return redirect()
+            ->route('dashboard', ['section' => 'user-management'])
+            ->with('success', 'New user created successfully.');
+    }
+
+    public function adminToggleUserStatus(User $user)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can change user status.');
+        }
+
+        $currentStatus = strtolower(trim((string) $user->status));
+        $newStatus = $currentStatus === 'active' || $currentStatus === ''
+            ? 'Inactive'
+            : 'Active';
+
+        if ($user->id === $admin->id && $newStatus === 'Inactive') {
+            return redirect()
+                ->route('dashboard', ['section' => 'user-management'])
+                ->with('error', 'You cannot deactivate your own account.');
+        }
+
+        $user->update(['status' => $newStatus]);
+
+        return redirect()
+            ->route('dashboard', ['section' => 'user-management'])
+            ->with('success', 'User status updated to ' . $newStatus . '.');
+    }
+
+    public function adminStoreDepartment(Request $request)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can create departments.');
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:departments,name',
+            'status' => ['required', Rule::in(['Active', 'Inactive'])],
+        ]);
+
+        Department::create([
+            'name' => trim($validated['name']),
+            'status' => ucfirst(strtolower((string) $validated['status'])),
+        ]);
+
+        return redirect()
+            ->route('dashboard', ['section' => 'department-hod-management'])
+            ->with('success', 'Department added successfully.');
+    }
+
+    public function adminUpdateDepartment(Request $request, Department $department)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can update departments.');
+        }
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', Rule::unique('departments', 'name')->ignore($department->id)],
+            'status' => ['required', Rule::in(['Active', 'Inactive'])],
+        ]);
+
+        $department->update([
+            'name' => trim($validated['name']),
+            'status' => ucfirst(strtolower((string) $validated['status'])),
+        ]);
+
+        return redirect()
+            ->route('dashboard', ['section' => 'department-hod-management'])
+            ->with('success', 'Department updated successfully.');
+    }
+
+    public function adminAssignDepartmentHod(Request $request, Department $department)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can assign HoD.');
+        }
+
+        $validated = $request->validate([
+            'hod_user_id' => ['required', 'integer', Rule::exists('users', 'id')],
+        ]);
+
+        $hodUser = User::findOrFail((int) $validated['hod_user_id']);
+
+        if ((int) ($hodUser->role_id ?? 0) !== 2) {
+            return redirect()
+                ->route('dashboard', ['section' => 'department-hod-management'])
+                ->with('error', 'Selected user is not an HoD.');
+        }
+
+        $department->update([
+            'hod_user_id' => $hodUser->id,
+        ]);
+
+        if (trim((string) $hodUser->department) !== trim((string) $department->name)) {
+            $hodUser->update([
+                'department' => $department->name,
+            ]);
+        }
+
+        return redirect()
+            ->route('dashboard', ['section' => 'department-hod-management'])
+            ->with('success', 'HoD assigned successfully.');
+    }
+
+    public function adminToggleDepartmentStatus(Department $department)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can change department status.');
+        }
+
+        $currentStatus = strtolower(trim((string) $department->status));
+        $newStatus = $currentStatus === 'active' || $currentStatus === ''
+            ? 'Inactive'
+            : 'Active';
+
+        $department->update([
+            'status' => $newStatus,
+        ]);
+
+        return redirect()
+            ->route('dashboard', ['section' => 'department-hod-management'])
+            ->with('success', 'Department status updated to ' . $newStatus . '.');
+    }
+
+    public function adminSaveRole(Request $request)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can manage roles.');
+        }
+
+        $roleId = (int) $request->input('role_id', 0);
+
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('roles', 'name')->ignore($roleId > 0 ? $roleId : null),
+            ],
+            'status' => ['required', Rule::in(['Active', 'Inactive'])],
+        ]);
+
+        if ($roleId > 0) {
+            $role = Role::findOrFail($roleId);
+            $role->update([
+                'name' => trim($validated['name']),
+                'status' => ucfirst(strtolower((string) $validated['status'])),
+            ]);
+
+            $message = 'Role updated successfully.';
+        } else {
+            Role::create([
+                'name' => trim($validated['name']),
+                'status' => ucfirst(strtolower((string) $validated['status'])),
+            ]);
+
+            $message = 'Role added successfully.';
+        }
+
+        return redirect()
+            ->route('dashboard', ['section' => 'roles-permissions'])
+            ->with('success', $message);
+    }
+
+    public function adminSavePermission(Request $request)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can manage permissions.');
+        }
+
+        $permissionId = (int) $request->input('permission_id', 0);
+
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('permissions', 'name')->ignore($permissionId > 0 ? $permissionId : null),
+            ],
+            'status' => ['required', Rule::in(['Active', 'Inactive'])],
+        ]);
+
+        if ($permissionId > 0) {
+            $permission = Permission::findOrFail($permissionId);
+            $permission->update([
+                'name' => trim($validated['name']),
+                'status' => ucfirst(strtolower((string) $validated['status'])),
+            ]);
+
+            $message = 'Permission updated successfully.';
+        } else {
+            Permission::create([
+                'name' => trim($validated['name']),
+                'status' => ucfirst(strtolower((string) $validated['status'])),
+            ]);
+
+            $message = 'Permission added successfully.';
+        }
+
+        return redirect()
+            ->route('dashboard', ['section' => 'roles-permissions'])
+            ->with('success', $message);
+    }
+
+    public function adminAssignRolePermissions(Request $request)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can assign permissions.');
+        }
+
+        $validated = $request->validate([
+            'role_id' => ['required', 'integer', Rule::exists('roles', 'id')],
+            'permission_ids' => ['nullable', 'array'],
+            'permission_ids.*' => ['integer', Rule::exists('permissions', 'id')],
+        ]);
+
+        $role = Role::findOrFail((int) $validated['role_id']);
+        $permissionIds = array_map('intval', $validated['permission_ids'] ?? []);
+
+        $role->permissions()->sync($permissionIds);
+
+        return redirect()
+            ->route('dashboard', [
+                'section' => 'roles-permissions',
+                'assign_role_id' => $role->id,
+            ])
+            ->with('success', 'Role permissions saved successfully.');
+    }
+
+    public function adminStoreLeaveType(Request $request)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can manage leave types.');
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:leave_types,name',
+            'code' => 'required|string|max:50|unique:leave_types,code',
+            'description' => 'nullable|string|max:1000',
+            'entitlement_days' => 'required|numeric|min:0|max:365',
+            'status' => ['required', Rule::in(['Active', 'Inactive'])],
+        ]);
+
+        LeaveType::create([
+            'name' => trim($validated['name']),
+            'code' => strtoupper(trim((string) $validated['code'])),
+            'description' => $validated['description'] ?? null,
+            'entitlement_days' => (float) $validated['entitlement_days'],
+            'is_active' => strtolower((string) $validated['status']) === 'active',
+        ]);
+
+        return redirect()
+            ->route('dashboard', ['section' => 'leave-types'])
+            ->with('success', 'Leave type added successfully.');
+    }
+
+    public function adminUpdateLeaveType(Request $request, LeaveType $leaveType)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can manage leave types.');
+        }
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', Rule::unique('leave_types', 'name')->ignore($leaveType->id)],
+            'code' => ['required', 'string', 'max:50', Rule::unique('leave_types', 'code')->ignore($leaveType->id)],
+            'description' => 'nullable|string|max:1000',
+            'entitlement_days' => 'required|numeric|min:0|max:365',
+            'status' => ['required', Rule::in(['Active', 'Inactive'])],
+        ]);
+
+        $leaveType->update([
+            'name' => trim($validated['name']),
+            'code' => strtoupper(trim((string) $validated['code'])),
+            'description' => $validated['description'] ?? null,
+            'entitlement_days' => (float) $validated['entitlement_days'],
+            'is_active' => strtolower((string) $validated['status']) === 'active',
+        ]);
+
+        return redirect()
+            ->route('dashboard', ['section' => 'leave-types'])
+            ->with('success', 'Leave type updated successfully.');
+    }
+
+    public function adminToggleLeaveTypeStatus(LeaveType $leaveType)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can manage leave types.');
+        }
+
+        $leaveType->update([
+            'is_active' => !(bool) $leaveType->is_active,
+        ]);
+
+        return redirect()
+            ->route('dashboard', ['section' => 'leave-types'])
+            ->with('success', 'Leave type status updated successfully.');
+    }
+
+    public function adminSetLeaveBalance(Request $request)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can manage leave balances.');
+        }
+
+        $validated = $request->validate([
+            'user_id' => ['required', 'integer', Rule::exists('users', 'id')],
+            'leave_type_id' => ['required', 'integer', Rule::exists('leave_types', 'id')],
+            'max_per_year' => 'required|numeric|min:0|max:365',
+        ]);
+
+        UserLeaveBalance::updateOrCreate(
+            [
+                'user_id' => (int) $validated['user_id'],
+                'leave_type_id' => (int) $validated['leave_type_id'],
+            ],
+            [
+                'max_per_year' => (float) $validated['max_per_year'],
+            ]
+        );
+
+        return redirect()
+            ->route('dashboard', ['section' => 'leave-balance'])
+            ->with('success', 'Leave balance set successfully.');
+    }
+
+    public function adminAdjustLeaveBalance(Request $request)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can manage leave balances.');
+        }
+
+        $validated = $request->validate([
+            'user_id' => ['required', 'integer', Rule::exists('users', 'id')],
+            'leave_type_id' => ['required', 'integer', Rule::exists('leave_types', 'id')],
+            'adjustment' => 'required|numeric|min:-365|max:365',
+        ]);
+
+        $balance = UserLeaveBalance::firstOrCreate(
+            [
+                'user_id' => (int) $validated['user_id'],
+                'leave_type_id' => (int) $validated['leave_type_id'],
+            ],
+            [
+                'max_per_year' => 0,
+                'adjustment' => 0,
+            ]
+        );
+
+        $balance->update([
+            'adjustment' => (float) $balance->adjustment + (float) $validated['adjustment'],
+        ]);
+
+        return redirect()
+            ->route('dashboard', ['section' => 'leave-balance'])
+            ->with('success', 'Leave balance adjusted successfully.');
+    }
+
+    public function adminResetLeaveBalancesYearly()
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can manage leave balances.');
+        }
+
+        UserLeaveBalance::query()->update([
+            'adjustment' => 0,
+        ]);
+
+        return redirect()
+            ->route('dashboard', ['section' => 'leave-balance'])
+            ->with('success', 'All leave balance adjustments were reset successfully.');
     }
 
     public function hodLeaveRequests(Request $request)
@@ -328,12 +1064,17 @@ class AuthController extends Controller
         $balances = $this->getLeaveBalances($user->id, $leaveTypes);
         $availableBalance = (float) ($balances[$selectedLeaveType->id] ?? 0);
         $entitlement = (float) $selectedLeaveType->entitlement_days;
+        $hasCustomBalance = UserLeaveBalance::query()
+            ->where('user_id', $user->id)
+            ->where('leave_type_id', $selectedLeaveType->id)
+            ->exists();
+        $shouldEnforceBalance = $hasCustomBalance || $entitlement > 0;
 
-        if ($entitlement > 0 && $totalDays > $availableBalance) {
+        if ($shouldEnforceBalance && $totalDays > $availableBalance) {
             return back()->withInput()->with('error', 'Insufficient leave balance for the selected leave type.');
         }
 
-        $balanceAfterRequest = $entitlement > 0
+        $balanceAfterRequest = $shouldEnforceBalance
             ? max(0, $availableBalance - $totalDays)
             : 0;
 
@@ -372,9 +1113,22 @@ class AuthController extends Controller
 
         $balances = [];
 
+        $customBalancesByTypeId = UserLeaveBalance::query()
+            ->where('user_id', $userId)
+            ->select(['leave_type_id', 'max_per_year', 'adjustment'])
+            ->get()
+            ->keyBy('leave_type_id');
+
         foreach ($leaveTypes as $leaveType) {
             $usedDays = (float) ($usedDaysByTypeId[$leaveType->id] ?? 0);
-            $balances[$leaveType->id] = max(0, (float) $leaveType->entitlement_days - $usedDays);
+
+            $customBalance = $customBalancesByTypeId->get($leaveType->id);
+            $effectiveEntitlement = $customBalance
+                ? (float) $customBalance->max_per_year
+                : (float) $leaveType->entitlement_days;
+            $effectiveEntitlement += $customBalance ? (float) $customBalance->adjustment : 0;
+
+            $balances[$leaveType->id] = max(0, $effectiveEntitlement - $usedDays);
         }
 
         return $balances;
@@ -653,6 +1407,11 @@ class AuthController extends Controller
         return (int) ($user->role_id ?? 0) === 1;
     }
 
+    private function isAdmin($user): bool
+    {
+        return (int) ($user->role_id ?? 0) === 1 || (bool) ($user->is_admin ?? false);
+    }
+
     private function normalizeTime(string $time, string $fallback): string
     {
         if (!preg_match('/^\d{1,2}:\d{2}$/', $time)) {
@@ -684,13 +1443,43 @@ class AuthController extends Controller
 
     private function attendanceHasColumn(string $column): bool
     {
-        static $columnLookup = null;
+        static $columnLookup = [];
 
-        if ($columnLookup === null) {
-            $columns = Schema::hasTable('attendances') ? Schema::getColumnListing('attendances') : [];
-            $columnLookup = array_fill_keys($columns, true);
+        if (!array_key_exists($column, $columnLookup)) {
+            $columnLookup[$column] = Schema::hasTable('attendances')
+                && Schema::hasColumn('attendances', $column);
         }
 
-        return isset($columnLookup[$column]);
+        return $columnLookup[$column];
+    }
+
+    private function syncDepartmentsFromUsers(): void
+    {
+        $departmentNames = User::query()
+            ->whereNotNull('department')
+            ->where('department', '!=', '')
+            ->distinct()
+            ->pluck('department');
+
+        foreach ($departmentNames as $departmentName) {
+            Department::firstOrCreate(
+                ['name' => trim((string) $departmentName)],
+                ['status' => 'Active']
+            );
+        }
+
+        $hodUsers = User::query()
+            ->where('role_id', 2)
+            ->whereNotNull('department')
+            ->where('department', '!=', '')
+            ->get(['id', 'department']);
+
+        foreach ($hodUsers as $hodUser) {
+            $department = Department::where('name', trim((string) $hodUser->department))->first();
+
+            if ($department && !$department->hod_user_id) {
+                $department->update(['hod_user_id' => $hodUser->id]);
+            }
+        }
     }
 }

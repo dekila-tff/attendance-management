@@ -20,7 +20,7 @@ return new class extends Migration
 
     /**
      * Reverse the migrations.
-     */
+     */ 
     public function down(): void
     {
         DB::statement("ALTER TABLE leave_requests MODIFY hod_status VARCHAR(255) NOT NULL DEFAULT 'Forwarded'");

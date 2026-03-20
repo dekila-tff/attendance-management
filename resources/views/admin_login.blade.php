@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Login')
+@section('title', 'Admin Login')
 
 @section('content')
     <div class="min-h-screen flex items-center justify-center px-4 py-12">
         <div class="w-full max-w-md rounded-2xl p-8 shadow-2xl card-backdrop">
-            <h2 class="text-2xl font-bold text-center mb-2">Sign in to your account</h2>
-            <p class="text-center text-sm text-white/70 mb-6">Enter your credentials to continue</p>
+            <h2 class="text-2xl font-bold text-center mb-2">Admin sign in</h2>
+            <p class="text-center text-sm text-white/70 mb-6">Use your admin credentials to continue</p>
 
             @if ($errors->any())
                 <div class="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
@@ -18,12 +18,12 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('login.attempt') }}" id="loginForm">
+            <form method="POST" action="{{ route('admin.login.attempt') }}" id="adminLoginForm">
                 @csrf
 
                 <div class="mb-4">
-                    <label class="block text-sm text-white/70 mb-2">Username</label>
-                    <input type="text" name="username" value="{{ old('username') }}" placeholder="username" required
+                    <label class="block text-sm text-white/70 mb-2">Admin Username</label>
+                    <input type="text" name="username" value="{{ old('username') }}" placeholder="admin@ntmh.bt" required
                            class="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/6 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('username') border-red-500/50 @enderror">
                 </div>
 
@@ -32,7 +32,7 @@
                     <div class="relative">
                         <input type="password" id="password" name="password" placeholder="Your password" required
                                class="w-full px-4 py-3 pr-12 rounded-lg bg-white/5 border border-white/6 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <button type="button" onclick="togglePassword()" 
+                        <button type="button" onclick="togglePassword()"
                                 class="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white/90 focus:outline-none">
                             <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
@@ -50,7 +50,7 @@
                         const passwordInput = document.getElementById('password');
                         const eyeIcon = document.getElementById('eye-icon');
                         const eyeSlashIcon = document.getElementById('eye-slash-icon');
-                        
+
                         if (passwordInput.type === 'password') {
                             passwordInput.type = 'text';
                             eyeIcon.classList.add('hidden');
@@ -68,22 +68,17 @@
                         <input type="checkbox" id="remember" name="remember" class="h-4 w-4 rounded border-white/10 bg-white/5 text-blue-500 focus:ring-blue-500">
                         Remember me
                     </label>
-                    <a class="text-sm text-white/80 hover:underline" href="#">Forgot?</a>
+                    <a class="text-sm text-white/80 hover:underline" href="{{ route('login') }}">Employee login</a>
                 </div>
 
                 <div class="mb-4">
-                    <button type="submit" class="inline-block bg-gradient-to-b from-blue-500 to-blue-800 text-white font-bold py-3 px-6 rounded-xl shadow-lg">Log in</button>
+                    <button type="submit" class="inline-block bg-gradient-to-b from-blue-500 to-blue-800 text-white font-bold py-3 px-6 rounded-xl shadow-lg">Admin Log in</button>
                 </div>
-
             </form>
 
-            <div class="mt-6 flex items-center justify-between text-sm leading-none text-white/70">
-                <div class="flex items-center gap-1">
-                    <span>Need help?</span>
-                    <a href="#" class="underline">Contact</a>
-                </div>
-                <a href="{{ route('admin.login') }}" class="underline">Admin</a>
-                <span>Version 1.0</span>
+            <div class="flex items-center justify-between text-sm text-white/70 mt-6">
+                <div>Need help? <a href="#" class="underline">Contact</a></div>
+                <div>Version 1.0</div>
             </div>
         </div>
     </div>

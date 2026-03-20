@@ -12,6 +12,7 @@ class LeaveType extends Model
     protected $fillable = [
         'name',
         'code',
+        'description',
         'entitlement_days',
         'is_active',
     ];
