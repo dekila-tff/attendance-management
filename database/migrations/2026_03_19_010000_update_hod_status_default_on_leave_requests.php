@@ -15,7 +15,13 @@ return new class extends Migration
             ->whereRaw('LOWER(hod_status) = ?', ['forwarded'])
             ->update(['hod_status' => 'Pending']);
 
-        DB::statement("ALTER TABLE leave_requests MODIFY hod_status VARCHAR(255) NOT NULL DEFAULT 'Pending'");
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE leave_requests ALTER COLUMN hod_status TYPE VARCHAR(255)");
+            DB::statement("ALTER TABLE leave_requests ALTER COLUMN hod_status SET NOT NULL");
+            DB::statement("ALTER TABLE leave_requests ALTER COLUMN hod_status SET DEFAULT 'Pending'");
+        } else {
+            DB::statement("ALTER TABLE leave_requests MODIFY hod_status VARCHAR(255) NOT NULL DEFAULT 'Pending'");
+        }
     }
 
     /**
@@ -23,7 +29,13 @@ return new class extends Migration
      */ 
     public function down(): void
     {
-        DB::statement("ALTER TABLE leave_requests MODIFY hod_status VARCHAR(255) NOT NULL DEFAULT 'Forwarded'");
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE leave_requests ALTER COLUMN hod_status TYPE VARCHAR(255)");
+            DB::statement("ALTER TABLE leave_requests ALTER COLUMN hod_status SET NOT NULL");
+            DB::statement("ALTER TABLE leave_requests ALTER COLUMN hod_status SET DEFAULT 'Forwarded'");
+        } else {
+            DB::statement("ALTER TABLE leave_requests MODIFY hod_status VARCHAR(255) NOT NULL DEFAULT 'Forwarded'");
+        }
 
         DB::table('leave_requests')
             ->where('submit_to', 'HoD')

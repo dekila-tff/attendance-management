@@ -5,16 +5,16 @@
 @section('content')
     <div class="min-h-screen p-8">
         <div class="max-w-6xl mx-auto">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+            <div class="mb-8" style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
                 <div>
                     <h1 class="text-3xl font-bold text-white">Attendance History</h1>
                     <p class="text-white/70 mt-1">Review your daily attendance records</p>
                 </div>
-                <div class="flex gap-3">
-                    <a href="{{ route('profile') }}" class="inline-block px-5 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition">
+                <div style="display:flex; align-items:center; gap:28px; margin-left:auto; white-space:nowrap;">
+                    <a href="{{ route('profile') }}" class="text-white hover:text-white/80 transition">
                         Back to Profile
                     </a>
-                    <a href="{{ route('dashboard') }}" class="inline-block px-5 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition">
+                    <a href="{{ route('dashboard') }}" class="text-white hover:text-white/80 transition">
                         Back to Dashboard
                     </a>
                 </div>

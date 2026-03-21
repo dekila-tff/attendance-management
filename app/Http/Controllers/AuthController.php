@@ -151,7 +151,7 @@ class AuthController extends Controller
 
                 $departmentHodCandidates = User::query()
                     ->where('role_id', 2)
-                    ->whereRaw('LOWER(COALESCE(status, "active")) = ?', ['active'])
+                    ->whereRaw("LOWER(COALESCE(status, 'active')) = ?", ['active'])
                     ->orderBy('name')
                     ->get(['id', 'name', 'eid', 'department']);
 
@@ -205,7 +205,7 @@ class AuthController extends Controller
 
             if ($activeSection === 'leave-balance') {
                 $leaveBalanceEmployees = User::query()
-                    ->whereRaw('LOWER(COALESCE(status, "active")) = ?', ['active'])
+                    ->whereRaw("LOWER(COALESCE(status, 'active')) = ?", ['active'])
                     ->orderBy('name')
                     ->get(['id', 'name', 'eid', 'department']);
 
