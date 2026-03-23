@@ -14,6 +14,8 @@ use App\Models\DepartmentShift;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
@@ -58,16 +60,28 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        $credentials = [
-            'email' => $request->username,
-            'password' => $request->password,
-        ];
+        $admin = DB::table('admins')
+            ->where('username', $request->username)
+            ->first();
 
-        if (!Auth::attempt($credentials, $request->filled('remember'))) {
+        if (! $admin || ! Hash::check($request->password, (string) $admin->password)) {
             return back()->withErrors([
                 'username' => 'The provided credentials do not match our records.',
             ])->withInput($request->only('username'));
         }
+
+        $user = User::query()
+            ->where('eid', (string) $admin->username)
+            ->orWhere('email', (string) $admin->username)
+            ->first();
+
+        if (! $user) {
+            return back()->withErrors([
+                'username' => 'Admin account is not linked to any user account.',
+            ])->withInput($request->only('username'));
+        }
+
+        Auth::login($user, $request->filled('remember'));
 
         $request->session()->regenerate();
 
@@ -118,6 +132,7 @@ class AuthController extends Controller
             $showAddDepartmentForm = (bool) $request->boolean('add_department');
             $managedRoles = collect();
             $managedPermissions = collect();
+            $roleAssignableUsers = collect();
             $selectedRoleIdForPermissions = (int) $request->query('assign_role_id', 0);
             $assignedPermissionIds = [];
             $managedLeaveTypes = null;
@@ -131,6 +146,9 @@ class AuthController extends Controller
             if ($activeSection === 'roles-permissions') {
                 $managedRoles = Role::query()->orderByDesc('id')->get();
                 $managedPermissions = Permission::query()->orderByDesc('id')->get();
+                $roleAssignableUsers = User::query()
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'eid', 'email', 'role_id']);
 
                 if ($selectedRoleIdForPermissions > 0) {
                     $selectedRole = Role::query()->with('permissions:id')->find($selectedRoleIdForPermissions);
@@ -150,7 +168,7 @@ class AuthController extends Controller
                     ->withQueryString();
 
                 $departmentHodCandidates = User::query()
-                    ->where('role_id', 2)
+                    ->where('role_id', 3)
                     ->whereRaw("LOWER(COALESCE(status, 'active')) = ?", ['active'])
                     ->orderBy('name')
                     ->get(['id', 'name', 'eid', 'department']);
@@ -308,6 +326,7 @@ class AuthController extends Controller
                 'showAddDepartmentForm' => $showAddDepartmentForm,
                 'managedRoles' => $managedRoles,
                 'managedPermissions' => $managedPermissions,
+                'roleAssignableUsers' => $roleAssignableUsers,
                 'selectedRoleIdForPermissions' => $selectedRoleIdForPermissions,
                 'assignedPermissionIds' => $assignedPermissionIds,
                 'managedLeaveTypes' => $managedLeaveTypes,
@@ -512,9 +531,7 @@ class AuthController extends Controller
         $hodUser = User::findOrFail((int) $validated['hod_user_id']);
 
         if ((int) ($hodUser->role_id ?? 0) !== 2) {
-            return redirect()
-                ->route('dashboard', ['section' => 'department-hod-management'])
-                ->with('error', 'Selected user is not an HoD.');
+            $hodUser->update(['role_id' => 2]);
         }
 
         $department->update([
@@ -663,6 +680,26 @@ class AuthController extends Controller
                 'assign_role_id' => $role->id,
             ])
             ->with('success', 'Role permissions saved successfully.');
+    }
+
+    public function adminAssignUserToRole(Request $request, Role $role)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can assign user roles.');
+        }
+
+        $validated = $request->validate([
+            'user_id' => ['required', 'integer', Rule::exists('users', 'id')],
+        ]);
+
+        $selectedUser = User::findOrFail((int) $validated['user_id']);
+        $selectedUser->update(['role_id' => (int) $role->id]);
+
+        return redirect()
+            ->route('dashboard', ['section' => 'roles-permissions'])
+            ->with('success', 'Role assigned to ' . $selectedUser->name . ' successfully.');
     }
 
     public function adminStoreLeaveType(Request $request)
@@ -1458,27 +1495,37 @@ class AuthController extends Controller
         $departmentNames = User::query()
             ->whereNotNull('department')
             ->where('department', '!=', '')
-            ->distinct()
-            ->pluck('department');
+            ->pluck('department')
+            ->map(fn ($name) => trim((string) $name))
+            ->filter(fn ($name) => $name !== '' && !filter_var($name, FILTER_VALIDATE_EMAIL))
+            ->unique()
+            ->values();
 
         foreach ($departmentNames as $departmentName) {
             Department::firstOrCreate(
-                ['name' => trim((string) $departmentName)],
+                ['name' => $departmentName],
                 ['status' => 'Active']
             );
         }
 
+        $departmentsByNormalizedName = Department::query()
+            ->get(['id', 'name'])
+            ->keyBy(fn ($department) => strtolower(trim((string) $department->name)));
+
         $hodUsers = User::query()
             ->where('role_id', 2)
+            ->whereRaw("LOWER(COALESCE(status, 'active')) = ?", ['active'])
             ->whereNotNull('department')
             ->where('department', '!=', '')
+            ->orderBy('id')
             ->get(['id', 'department']);
 
         foreach ($hodUsers as $hodUser) {
-            $department = Department::where('name', trim((string) $hodUser->department))->first();
+            $normalizedName = strtolower(trim((string) $hodUser->department));
+            $department = $departmentsByNormalizedName->get($normalizedName);
 
-            if ($department && !$department->hod_user_id) {
-                $department->update(['hod_user_id' => $hodUser->id]);
+            if ($department) {
+                Department::where('id', $department->id)->update(['hod_user_id' => $hodUser->id]);
             }
         }
     }

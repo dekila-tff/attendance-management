@@ -33,6 +33,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/departments/{department}/assign-hod', [AuthController::class, 'adminAssignDepartmentHod'])->name('admin.departments.assignHod');
     Route::post('/admin/departments/{department}/toggle-status', [AuthController::class, 'adminToggleDepartmentStatus'])->name('admin.departments.toggleStatus');
     Route::post('/admin/roles/save', [AuthController::class, 'adminSaveRole'])->name('admin.roles.save');
+    Route::post('/admin/roles/{role}/assign-user', [AuthController::class, 'adminAssignUserToRole'])->name('admin.roles.assignUser');
     Route::post('/admin/roles/assign-permissions', [AuthController::class, 'adminAssignRolePermissions'])->name('admin.roles.assignPermissions');
     Route::post('/admin/permissions/save', [AuthController::class, 'adminSavePermission'])->name('admin.permissions.save');
     Route::post('/admin/leave-types/create', [AuthController::class, 'adminStoreLeaveType'])->name('admin.leaveTypes.store');

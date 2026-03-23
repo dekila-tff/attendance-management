@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(IpdShiftSeeder::class);
         $this->call(AdminSeeder::class);
+        $this->call(AdminTableSeeder::class);
 
         // Import employees from CSV
         $this->call(EmployeeSeeder::class);

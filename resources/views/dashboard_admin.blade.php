@@ -450,6 +450,28 @@
         color: #0f172a;
     }
 
+    .admin-select-dark {
+        background: #ffffff;
+        border-color: #cbd5e1;
+        color: #1f2937;
+    }
+
+    #departmentModal .admin-input,
+    #departmentModal .admin-select {
+        background: #ffffff;
+        border-color: #cbd5e1;
+        color: #1f2937;
+    }
+
+    #departmentModal .admin-input::placeholder {
+        color: #64748b;
+        opacity: 1;
+    }
+
+    #departmentModal .admin-select option {
+        color: #1f2937;
+    }
+
     @media (min-width: 768px) {
         .admin-form-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -629,27 +651,27 @@
 
                     @if($activeSection === 'department-hod-management')
                         <div class="mb-4 flex items-center justify-between">
-                            <a href="{{ route('dashboard', ['section' => 'department-hod-management', 'add_department' => 1]) }}" class="admin-action-link" style="font-size:1.05rem;">
+                            <button type="button" class="admin-action-link" style="font-size:1.05rem;" onclick="openDepartmentModal()">
                                 + Add Department
-                            </a>
+                            </button>
                         </div>
 
-                        @if($showAddDepartmentForm)
-                            <div class="mb-5 rounded-lg border border-white/20 bg-white/5 p-4">
-                                <h3 style="margin:0 0 10px; color:#fff; font-size:1.2rem; font-weight:700;">Add Department</h3>
+                        <div id="departmentModal" class="rp-modal" aria-hidden="true" data-open-on-load="{{ $errors->any() ? '1' : '0' }}">
+                            <div class="rp-modal-card">
+                                <h4>Add Department</h4>
 
                                 <form method="POST" action="{{ route('admin.departments.store') }}" class="admin-form-grid">
                                     @csrf
                                     <input type="text" name="name" value="{{ old('name') }}" class="admin-input" placeholder="Department name" required>
 
-                                    <select name="status" class="admin-select" required>
+                                    <select name="status" class="admin-select admin-select-dark" required>
                                         <option value="Active" @selected(old('status', 'Active') === 'Active')>Active</option>
                                         <option value="Inactive" @selected(old('status') === 'Inactive')>Inactive</option>
                                     </select>
 
                                     <div style="grid-column:1 / -1; display:flex; gap:10px;">
                                         <button type="submit" class="admin-content-action">Save Department</button>
-                                        <a href="{{ route('dashboard', ['section' => 'department-hod-management']) }}" class="admin-content-action" style="background:#475569;">Cancel</a>
+                                        <button type="button" class="admin-content-action" style="background:#475569;" onclick="closeDepartmentModal()">Cancel</button>
                                     </div>
                                 </form>
 
@@ -661,7 +683,25 @@
                                     </div>
                                 @endif
                             </div>
-                        @endif
+                        </div>
+
+                        <script>
+                            function openDepartmentModal() {
+                                document.getElementById('departmentModal').classList.add('open');
+                            }
+
+                            function closeDepartmentModal() {
+                                document.getElementById('departmentModal').classList.remove('open');
+                            }
+
+                            const shouldOpenDepartmentModal = document
+                                .getElementById('departmentModal')
+                                .getAttribute('data-open-on-load') === '1';
+
+                            if (shouldOpenDepartmentModal) {
+                                openDepartmentModal();
+                            }
+                        </script>
 
                         <div class="admin-table-wrap">
                             <table class="admin-table">
@@ -741,7 +781,7 @@
                                     @csrf
 
                                     <select name="hod_user_id" class="admin-select" required>
-                                        <option value="">Select HoD</option>
+                                        <option value="">Select Employee</option>
                                         @foreach($departmentHodCandidates as $hodCandidate)
                                             <option value="{{ $hodCandidate->id }}" @selected((int) old('hod_user_id', $assigningDepartment->hod_user_id) === (int) $hodCandidate->id)>
                                                 {{ $hodCandidate->name }}{{ $hodCandidate->eid ? ' (' . $hodCandidate->eid . ')' : '' }}
@@ -785,6 +825,7 @@
                                                         data-id="{{ $role->id }}"
                                                         data-name="{{ $role->name }}"
                                                         data-status="{{ $roleStatus }}"
+                                                        data-assign-url="{{ route('admin.roles.assignUser', $role) }}"
                                                         onclick="openRoleModalFromButton(this)"
                                                     >
                                                         Edit
@@ -925,6 +966,23 @@
                                         <button type="button" class="rp-cancel-btn" onclick="closeRoleModal()">Cancel</button>
                                     </div>
                                 </form>
+
+                                <form method="POST" id="roleAssignUserForm" style="display:none; margin-top:12px;">
+                                    @csrf
+                                    <label class="rp-modal-label" for="roleAssignUserSelect">Assign User To This Role</label>
+                                    <select class="rp-modal-select" id="roleAssignUserSelect" name="user_id" required>
+                                        <option value="">Select user</option>
+                                        @foreach($roleAssignableUsers as $assignableUser)
+                                            <option value="{{ $assignableUser->id }}">
+                                                {{ $assignableUser->name }}{{ $assignableUser->eid ? ' (' . $assignableUser->eid . ')' : '' }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+
+                                    <div class="rp-modal-actions">
+                                        <button type="submit" class="rp-save-btn">Assign</button>
+                                    </div>
+                                </form>
                             </div>
                         </div>
 
@@ -953,12 +1011,22 @@
                         </div>
 
                         <script>
-                            function openRoleModal(id = '', name = '', status = 'Active') {
+                            function openRoleModal(id = '', name = '', status = 'Active', assignUrl = '') {
                                 const modal = document.getElementById('roleModal');
+                                const assignForm = document.getElementById('roleAssignUserForm');
                                 document.getElementById('roleModalId').value = id || '';
                                 document.getElementById('roleModalName').value = name || '';
                                 document.getElementById('roleModalStatus').value = status || 'Active';
                                 document.getElementById('roleModalTitle').textContent = id ? 'Edit Role' : 'Add Role';
+
+                                if (id && assignUrl) {
+                                    assignForm.setAttribute('action', assignUrl);
+                                    assignForm.style.display = 'block';
+                                } else {
+                                    assignForm.setAttribute('action', '');
+                                    assignForm.style.display = 'none';
+                                }
+
                                 modal.classList.add('open');
                             }
 
@@ -970,7 +1038,8 @@
                                 openRoleModal(
                                     button.getAttribute('data-id') || '',
                                     button.getAttribute('data-name') || '',
-                                    button.getAttribute('data-status') || 'Active'
+                                    button.getAttribute('data-status') || 'Active',
+                                    button.getAttribute('data-assign-url') || ''
                                 );
                             }
 
@@ -997,12 +1066,6 @@
                         </script>
                     @elseif($activeSection === 'leave-balance')
                         <div class="leave-balance-card rounded-lg bg-white/5 p-4">
-                            <h3 style="margin:0 0 14px; color:#fff; font-size:1.35rem; font-weight:800;">Reset Yearly</h3>
-                            <form method="POST" action="{{ route('admin.leaveBalances.resetYearly') }}" style="margin-bottom: 28px;">
-                                @csrf
-                                <button type="submit" class="rp-save-btn">Reset All</button>
-                            </form>
-
                             <h3 style="margin:0 0 14px; color:#fff; font-size:1.35rem; font-weight:800;">Set Leave Balance</h3>
 
                             <form method="POST" action="{{ route('admin.leaveBalances.set') }}" class="admin-form-grid" style="margin-bottom: 16px;">
@@ -1081,7 +1144,13 @@
                                 </div>
                             </form>
 
-                            <h3 style="margin:30px 0 14px; color:#fff; font-size:1.35rem; font-weight:800;">Leave Balance List</h3>
+                            <h3 style="margin:30px 0 14px; color:#fff; font-size:1.35rem; font-weight:800;">Reset Yearly</h3>
+                            <form method="POST" action="{{ route('admin.leaveBalances.resetYearly') }}" style="margin-bottom: 18px;">
+                                @csrf
+                                <button type="submit" class="rp-save-btn">Reset All</button>
+                            </form>
+
+                            <h3 style="margin:0 0 14px; color:#fff; font-size:1.35rem; font-weight:800;">Leave Balance List</h3>
 
                             <div class="admin-table-wrap">
                                 <table class="admin-table" style="min-width: 860px;">

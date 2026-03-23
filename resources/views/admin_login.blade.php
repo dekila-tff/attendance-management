@@ -23,7 +23,7 @@
 
                 <div class="mb-4">
                     <label class="block text-sm text-white/70 mb-2">Admin Username</label>
-                    <input type="text" name="username" value="{{ old('username') }}" placeholder="admin@ntmh.bt" required
+                          <input type="text" name="username" value="{{ old('username') }}" placeholder="ADM0001" required
                            class="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/6 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('username') border-red-500/50 @enderror">
                 </div>
 

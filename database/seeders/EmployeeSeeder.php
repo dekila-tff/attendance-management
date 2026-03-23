@@ -36,7 +36,10 @@ class EmployeeSeeder extends Seeder
             $eid = $row[0];
             $name = trim($row[1]);
             $designation = $row[2];
-            $department = $row[3];
+            $department = trim((string) $row[3]);
+            if (filter_var($department, FILTER_VALIDATE_EMAIL)) {
+                $department = null;
+            }
             $username = $row[4];
             $password = $row[5];
             $role = $row[6];
