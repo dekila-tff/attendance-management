@@ -472,6 +472,22 @@
         color: #1f2937;
     }
 
+    #userEditModal .admin-input,
+    #userEditModal .admin-select {
+        background: #ffffff;
+        border-color: #cbd5e1;
+        color: #1f2937;
+    }
+
+    #userEditModal .admin-input::placeholder {
+        color: #64748b;
+        opacity: 1;
+    }
+
+    #userEditModal .admin-select option {
+        color: #1f2937;
+    }
+
     @media (min-width: 768px) {
         .admin-form-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1393,7 +1409,20 @@
                                                 </span>
                                             </td>
                                             <td>
-                                                <a class="admin-action-link" href="{{ route('dashboard', ['section' => 'user-management', 'edit_user' => $managedUser->id, 'user_search' => $userFilters['search']]) }}">Edit</a>
+                                                <button
+                                                    type="button"
+                                                    class="admin-action-link"
+                                                    onclick="openUserEditModalFromButton(this)"
+                                                    data-name="{{ $managedUser->name }}"
+                                                    data-eid="{{ $managedUser->eid ?: '' }}"
+                                                    data-designation="{{ $managedUser->designation ?: '' }}"
+                                                    data-department="{{ $managedUser->department ?: '' }}"
+                                                    data-role-id="{{ $managedUser->role_id }}"
+                                                    data-status="{{ $managedUser->status ?: 'Active' }}"
+                                                    data-update-url="{{ route('admin.users.update', $managedUser) }}"
+                                                >
+                                                    Edit
+                                                </button>
                                                 <span class="admin-inline-separator">|</span>
                                                 <form method="POST" action="{{ route('admin.users.toggleStatus', $managedUser) }}" style="display:inline;">
                                                     @csrf
@@ -1416,37 +1445,50 @@
                             </div>
                         @endif
 
-                        @if($editingUser)
-                            <div class="mt-6 rounded-lg border border-white/20 bg-white/5 p-4">
-                                <h3 style="margin:0 0 10px; color:#fff; font-size:1.2rem; font-weight:700;">Edit User: {{ $editingUser->name }}</h3>
-                                <form method="POST" action="{{ route('admin.users.update', $editingUser) }}" class="admin-form-grid">
+                        <div
+                            id="userEditModal"
+                            class="rp-modal"
+                            aria-hidden="true"
+                            data-open-on-load="{{ $editingUser ? '1' : '0' }}"
+                            data-initial-name="{{ old('name', $editingUser?->name) }}"
+                            data-initial-eid="{{ old('eid', $editingUser?->eid) }}"
+                            data-initial-designation="{{ old('designation', $editingUser?->designation) }}"
+                            data-initial-department="{{ old('department', $editingUser?->department) }}"
+                            data-initial-role-id="{{ old('role_id', $editingUser?->role_id) }}"
+                            data-initial-status="{{ old('status', $editingUser?->status) }}"
+                            data-initial-update-url="{{ $editingUser ? route('admin.users.update', $editingUser) : '' }}"
+                        >
+                            <div class="rp-modal-card">
+                                <h4 id="userEditModalTitle">Edit User</h4>
+
+                                <form method="POST" id="userEditForm" action="{{ $editingUser ? route('admin.users.update', $editingUser) : '#' }}" class="admin-form-grid">
                                     @csrf
 
-                                    <input type="text" name="name" value="{{ old('name', $editingUser->name) }}" class="admin-input" placeholder="Name" required>
-                                    <input type="text" name="eid" value="{{ old('eid', $editingUser->eid) }}" class="admin-input" placeholder="EID">
-                                    <input type="text" name="designation" value="{{ old('designation', $editingUser->designation) }}" class="admin-input" placeholder="Designation">
-                                    <input type="text" name="department" value="{{ old('department', $editingUser->department) }}" class="admin-input" placeholder="Department">
+                                    <input type="text" id="userEditName" name="name" value="{{ old('name', $editingUser?->name) }}" class="admin-input" placeholder="Name" required>
+                                    <input type="text" id="userEditEid" name="eid" value="{{ old('eid', $editingUser?->eid) }}" class="admin-input" placeholder="EID">
+                                    <input type="text" id="userEditDesignation" name="designation" value="{{ old('designation', $editingUser?->designation) }}" class="admin-input" placeholder="Designation">
+                                    <input type="text" id="userEditDepartment" name="department" value="{{ old('department', $editingUser?->department) }}" class="admin-input" placeholder="Department">
 
-                                    <select name="role_id" class="admin-select" required>
+                                    <select id="userEditRoleId" name="role_id" class="admin-select" required>
                                         @foreach($roleOptions as $roleId => $roleLabel)
-                                            <option value="{{ $roleId }}" @selected((int) old('role_id', $editingUser->role_id) === (int) $roleId)>
+                                            <option value="{{ $roleId }}" @selected((int) old('role_id', $editingUser?->role_id) === (int) $roleId)>
                                                 {{ $roleLabel }}
                                             </option>
                                         @endforeach
                                     </select>
 
-                                    <select name="status" class="admin-select" required>
-                                        <option value="Active" @selected(old('status', $editingUser->status) === 'Active')>Active</option>
-                                        <option value="Inactive" @selected(old('status', $editingUser->status) === 'Inactive')>Inactive</option>
+                                    <select id="userEditStatus" name="status" class="admin-select" required>
+                                        <option value="Active" @selected(old('status', $editingUser?->status) === 'Active')>Active</option>
+                                        <option value="Inactive" @selected(old('status', $editingUser?->status) === 'Inactive')>Inactive</option>
                                     </select>
 
                                     <div style="grid-column:1 / -1; display:flex; gap:10px;">
                                         <button type="submit" class="admin-content-action">Save Changes</button>
-                                        <a href="{{ route('dashboard', ['section' => 'user-management']) }}" class="admin-content-action" style="background:#475569;">Cancel</a>
+                                        <button type="button" class="admin-content-action" style="background:#475569;" onclick="closeUserEditModal()">Cancel</button>
                                     </div>
                                 </form>
 
-                                @if($errors->any())
+                                @if($errors->any() && $editingUser)
                                     <div class="admin-alert admin-alert-error" style="margin-top:10px;">
                                         @foreach($errors->all() as $error)
                                             <div>{{ $error }}</div>
@@ -1454,7 +1496,79 @@
                                     </div>
                                 @endif
                             </div>
-                        @endif
+                        </div>
+
+                        <script>
+                            function openUserEditModal(payload = {}) {
+                                const modal = document.getElementById('userEditModal');
+                                const form = document.getElementById('userEditForm');
+                                const roleSelect = document.getElementById('userEditRoleId');
+                                const statusSelect = document.getElementById('userEditStatus');
+
+                                if (payload.updateUrl) {
+                                    form.setAttribute('action', payload.updateUrl);
+                                }
+
+                                document.getElementById('userEditModalTitle').textContent = payload.name
+                                    ? `Edit User: ${payload.name}`
+                                    : 'Edit User';
+                                document.getElementById('userEditName').value = payload.name || '';
+                                document.getElementById('userEditEid').value = payload.eid || '';
+                                document.getElementById('userEditDesignation').value = payload.designation || '';
+                                document.getElementById('userEditDepartment').value = payload.department || '';
+
+                                if (payload.roleId) {
+                                    roleSelect.value = String(payload.roleId);
+                                }
+
+                                statusSelect.value = String(payload.status || 'Active').toLowerCase() === 'inactive'
+                                    ? 'Inactive'
+                                    : 'Active';
+
+                                modal.classList.add('open');
+                            }
+
+                            function openUserEditModalFromButton(button) {
+                                openUserEditModal({
+                                    name: button.getAttribute('data-name') || '',
+                                    eid: button.getAttribute('data-eid') || '',
+                                    designation: button.getAttribute('data-designation') || '',
+                                    department: button.getAttribute('data-department') || '',
+                                    roleId: button.getAttribute('data-role-id') || '',
+                                    status: button.getAttribute('data-status') || 'Active',
+                                    updateUrl: button.getAttribute('data-update-url') || ''
+                                });
+                            }
+
+                            function closeUserEditModal() {
+                                document.getElementById('userEditModal').classList.remove('open');
+                            }
+
+                            const userEditModal = document.getElementById('userEditModal');
+                            if (userEditModal) {
+                                userEditModal.addEventListener('click', function (event) {
+                                    if (event.target === userEditModal) {
+                                        closeUserEditModal();
+                                    }
+                                });
+                            }
+
+                            const shouldOpenUserEditModal = document
+                                .getElementById('userEditModal')
+                                .getAttribute('data-open-on-load') === '1';
+
+                            if (shouldOpenUserEditModal) {
+                                openUserEditModal({
+                                    name: userEditModal.getAttribute('data-initial-name') || '',
+                                    eid: userEditModal.getAttribute('data-initial-eid') || '',
+                                    designation: userEditModal.getAttribute('data-initial-designation') || '',
+                                    department: userEditModal.getAttribute('data-initial-department') || '',
+                                    roleId: userEditModal.getAttribute('data-initial-role-id') || '',
+                                    status: userEditModal.getAttribute('data-initial-status') || 'Active',
+                                    updateUrl: userEditModal.getAttribute('data-initial-update-url') || ''
+                                });
+                            }
+                        </script>
                     @elseif($activeSection === 'attendance-logs')
                         <form method="GET" action="{{ route('dashboard') }}" class="mb-5 grid grid-cols-1 gap-3 md:grid-cols-4">
                             <input type="hidden" name="section" value="attendance-logs">

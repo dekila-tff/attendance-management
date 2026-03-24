@@ -98,9 +98,13 @@
                     <div>
                         <label for="submit_to" class="mb-2 block text-sm font-semibold text-white/80">Submit To</label>
                         <select id="submit_to" name="submit_to" class="w-full rounded-xl border border-white/20 bg-[#082b30] px-3 py-2.5 text-base text-white focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-400/30" required>
-                            <option value="" disabled @selected(!old('submit_to'))>Select approver</option>
-                            <option value="HoD" @selected(old('submit_to') === 'HoD')>HoD (HoD)</option>
-                            <option value="MS" @selected(old('submit_to') === 'MS')>MS</option>
+                            @if($isHod)
+                                <option value="MS" selected>MS</option>
+                            @else
+                                <option value="" disabled @selected(!old('submit_to'))>Select approver</option>
+                                <option value="HoD" @selected(old('submit_to') === 'HoD')>HoD (HoD)</option>
+                                <option value="MS" @selected(old('submit_to') === 'MS')>MS</option>
+                            @endif
                         </select>
                     </div>
 
@@ -153,8 +157,15 @@
                                 <th class="px-3 py-3 font-semibold">E.date</th>
                                 <th class="px-3 py-3 font-semibold">Reason</th>
                                 <th class="px-3 py-3 font-semibold">Days</th>
-                                <th class="px-3 py-3 font-semibold">HoD</th>
-                                <th class="px-3 py-3 font-semibold">HoD Status</th>
+                                @unless($isHod)
+                                    <th class="px-3 py-3 font-semibold">HoD</th>
+                                @endunless
+                                @unless($isHod)
+                                    <th class="px-3 py-3 font-semibold">MS</th>
+                                @endunless
+                                @unless($isHod)
+                                    <th class="px-3 py-3 font-semibold">HoD Status</th>
+                                @endunless
                                 <th class="px-3 py-3 font-semibold">MS Status</th>
                             </tr>
                         </thead>
@@ -166,20 +177,29 @@
                                     <td class="px-3 py-3">{{ \Carbon\Carbon::parse($leave->end_date)->format('Y-m-d') }}</td>
                                     <td class="px-3 py-3">{{ $leave->reason }}</td>
                                     <td class="px-3 py-3 font-medium">{{ number_format((float) $leave->total_days, 2) }}</td>
-                                    <td class="px-3 py-3">{{ $leave->submit_to }}</td>
-                                    <td class="px-3 py-3">
-                                        @if(strtolower($leave->hod_status) === 'pending')
-                                            <span class="inline-flex rounded-full bg-amber-500/20 px-2.5 py-1 text-xs font-semibold text-amber-200">{{ $leave->hod_status }}</span>
-                                        @elseif(strtolower($leave->hod_status) === 'forwarded')
-                                            <span class="inline-flex rounded-full bg-sky-500/20 px-2.5 py-1 text-xs font-semibold text-sky-200">{{ $leave->hod_status }}</span>
-                                        @elseif(strtolower($leave->hod_status) === 'approved')
-                                            <span class="inline-flex rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-200">{{ $leave->hod_status }}</span>
-                                        @elseif(strtolower($leave->hod_status) === 'rejected')
-                                            <span class="inline-flex rounded-full bg-red-500/20 px-2.5 py-1 text-xs font-semibold text-red-200">{{ $leave->hod_status }}</span>
-                                        @else
-                                            <span class="inline-flex rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold text-white/80">{{ $leave->hod_status }}</span>
-                                        @endif
-                                    </td>
+                                    @unless($isHod)
+                                        <td class="px-3 py-3">{{ $leave->is_direct_to_ms ? '-' : 'HoD' }}</td>
+                                    @endunless
+                                    @unless($isHod)
+                                        <td class="px-3 py-3">{{ $leave->is_direct_to_ms ? 'MS' : '-' }}</td>
+                                    @endunless
+                                    @unless($isHod)
+                                        <td class="px-3 py-3">
+                                            @if($leave->is_direct_to_ms)
+                                                <span class="text-white/50">-</span>
+                                            @elseif(strtolower((string) $leave->hod_status) === 'pending')
+                                                <span class="inline-flex rounded-full bg-amber-500/20 px-2.5 py-1 text-xs font-semibold text-amber-200">{{ $leave->hod_status }}</span>
+                                            @elseif(strtolower((string) $leave->hod_status) === 'forwarded')
+                                                <span class="inline-flex rounded-full bg-sky-500/20 px-2.5 py-1 text-xs font-semibold text-sky-200">{{ $leave->hod_status }}</span>
+                                            @elseif(strtolower((string) $leave->hod_status) === 'approved')
+                                                <span class="inline-flex rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-200">{{ $leave->hod_status }}</span>
+                                            @elseif(strtolower((string) $leave->hod_status) === 'rejected')
+                                                <span class="inline-flex rounded-full bg-red-500/20 px-2.5 py-1 text-xs font-semibold text-red-200">{{ $leave->hod_status }}</span>
+                                            @else
+                                                <span class="text-white/50">-</span>
+                                            @endif
+                                        </td>
+                                    @endunless
                                     <td class="px-3 py-3">
                                         @if(strtolower($leave->ms_status) === 'pending')
                                             <span class="inline-flex rounded-full bg-amber-500/20 px-2.5 py-1 text-xs font-semibold text-amber-200">{{ $leave->ms_status }}</span>
@@ -194,7 +214,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="py-10 text-center text-white/50">No leave history found.</td>
+                                    <td colspan="{{ $isHod ? 6 : 9 }}" class="py-10 text-center text-white/50">No leave history found.</td>
                                 </tr>
                             @endforelse
                         </tbody>

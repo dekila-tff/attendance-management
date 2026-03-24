@@ -44,6 +44,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/leave-balances/reset-yearly', [AuthController::class, 'adminResetLeaveBalancesYearly'])->name('admin.leaveBalances.resetYearly');
     Route::get('/hod/leave-requests', [AuthController::class, 'hodLeaveRequests'])->name('hod.leave.requests');
     Route::get('/ms/leave-requests', [AuthController::class, 'msLeaveRequests'])->name('ms.leave.requests');
+    Route::get('/ms/attendance-logs', [AuthController::class, 'msAttendanceLogs'])->name('ms.attendance.logs');
     Route::post('/ms/leave-requests/{leaveRequest}/action', [AuthController::class, 'msLeaveRequestAction'])->name('ms.leave.requests.action');
     Route::post('/hod/leave-requests/{leaveRequest}/action', [AuthController::class, 'hodLeaveRequestAction'])->name('hod.leave.requests.action');
     Route::get('/attendance-history', [AuthController::class, 'attendanceHistory'])->name('attendance.history');

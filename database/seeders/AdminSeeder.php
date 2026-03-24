@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 
 class AdminSeeder extends Seeder
 {
@@ -23,16 +22,12 @@ class AdminSeeder extends Seeder
                 'name' => env('ADMIN_NAME', 'System Admin'),
                 'password' => Hash::make($adminPassword),
                 'eid' => env('ADMIN_EID', 'ADM0001'),
-                'designation' => 'Medical Superintendent',
+                'designation' => 'System Administrator',
                 'department' => 'Administration',
-                'role_id' => 1,
+                'role_id' => 3,
                 'status' => 'Active',
             ]
         );
-
-        if (Schema::hasColumn('users', 'is_admin')) {
-            $admin->forceFill(['is_admin' => true])->save();
-        }
 
         $this->command?->info('Admin user is ready: ' . $adminEmail);
     }

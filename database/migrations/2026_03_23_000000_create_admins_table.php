@@ -25,11 +25,19 @@ return new class extends Migration
             ->where('email', env('ADMIN_EMAIL', 'admin@ntmh.bt'))
             ->first();
 
-        if (! $adminUser && Schema::hasColumn('users', 'is_admin')) {
-            $adminUser = DB::table('users')
-                ->where('is_admin', true)
-                ->orderBy('id')
-                ->first();
+        if (! $adminUser) {
+            $adminUsername = trim((string) env('ADMIN_USERNAME', ''));
+
+            if ($adminUsername !== '') {
+                $adminUser = DB::table('users')
+                    ->where('eid', $adminUsername)
+                    ->orWhere('email', $adminUsername)
+                    ->first();
+            }
+        }
+
+        if (! $adminUser) {
+            return;
         }
 
         DB::table('admins')->insert([

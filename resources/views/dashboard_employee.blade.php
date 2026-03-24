@@ -40,9 +40,9 @@
                     @endif
 
                     @if($isHod)
-                        <a href="{{ route('hod.leave.requests') }}">HoD Dashboard</a>
+                        <a href="{{ route('hod.leave.requests') }}">Leave Request</a>
                     @else
-                        <span class="disabled">HoD Dashboard</span>
+                        <span class="disabled">Leave Request</span>
                     @endif
 
                     <a href="{{ route('attendance.history') }}">Attendance</a>

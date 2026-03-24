@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 
 class AdminTableSeeder extends Seeder
 {
@@ -15,20 +14,21 @@ class AdminTableSeeder extends Seeder
     public function run(): void
     {
         $adminEmail = env('ADMIN_EMAIL', 'admin@ntmh.bt');
+        $adminUsername = trim((string) env('ADMIN_USERNAME', ''));
 
         $adminUser = DB::table('users')
             ->where('email', $adminEmail)
             ->first();
 
-        if (! $adminUser && Schema::hasColumn('users', 'is_admin')) {
+        if (! $adminUser && $adminUsername !== '') {
             $adminUser = DB::table('users')
-                ->where('is_admin', true)
-                ->orderBy('id')
+                ->where('eid', $adminUsername)
+                ->orWhere('email', $adminUsername)
                 ->first();
         }
 
         if (! $adminUser) {
-            $this->command?->warn('No admin user found in users table.');
+            $this->command?->warn('No matching admin user found. Set ADMIN_EMAIL or ADMIN_USERNAME to an existing user.');
             return;
         }
 

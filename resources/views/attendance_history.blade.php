@@ -11,9 +11,6 @@
                     <p class="text-white/70 mt-1">Review your daily attendance records</p>
                 </div>
                 <div style="display:flex; align-items:center; gap:28px; margin-left:auto; white-space:nowrap;">
-                    <a href="{{ route('profile') }}" class="text-white hover:text-white/80 transition">
-                        Back to Profile
-                    </a>
                     <a href="{{ route('dashboard') }}" class="text-white hover:text-white/80 transition">
                         Back to Dashboard
                     </a>

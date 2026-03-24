@@ -695,6 +695,7 @@ class AuthController extends Controller
         ]);
 
         $selectedUser = User::findOrFail((int) $validated['user_id']);
+
         $selectedUser->update(['role_id' => (int) $role->id]);
 
         return redirect()
@@ -913,6 +914,7 @@ class AuthController extends Controller
                 'hod_status' => 'Forwarded',
                 'submit_to' => 'MS',
                 'ms_status' => 'Pending',
+                'is_direct_to_ms' => false,
             ]);
 
             return back()->with('success', 'Leave request forwarded to MS.');
@@ -937,14 +939,108 @@ class AuthController extends Controller
         $leaveRequests = LeaveRequest::query()
             ->with(['user', 'leaveType'])
             ->where('submit_to', 'MS')
-            ->where('hod_status', 'Forwarded')
+            ->where(function ($query) {
+                $query->where('hod_status', 'Forwarded')
+                    ->orWhere('is_direct_to_ms', true);
+            })
             ->orderByDesc('created_at')
             ->paginate(15)
+            ->withQueryString();
+
+        $attendanceFilters = [
+            'from_date' => (string) $request->query('att_from_date', ''),
+            'to_date' => (string) $request->query('att_to_date', ''),
+            'employee' => trim((string) $request->query('att_employee', '')),
+        ];
+
+        $attendanceQuery = Attendance::query()
+            ->with(['user:id,name,eid,email,department,role_id'])
+            ->whereHas('user', function ($query) {
+                $query->where('role_id', '!=', 1);
+            })
+            ->orderByDesc('date')
+            ->orderByDesc('clock_in');
+
+        if ($attendanceFilters['from_date'] !== '') {
+            $attendanceQuery->whereDate('date', '>=', $attendanceFilters['from_date']);
+        }
+
+        if ($attendanceFilters['to_date'] !== '') {
+            $attendanceQuery->whereDate('date', '<=', $attendanceFilters['to_date']);
+        }
+
+        if ($attendanceFilters['employee'] !== '') {
+            $employee = $attendanceFilters['employee'];
+
+            $attendanceQuery->whereHas('user', function ($query) use ($employee) {
+                $query->where('name', 'like', "%{$employee}%")
+                    ->orWhere('eid', 'like', "%{$employee}%")
+                    ->orWhere('email', 'like', "%{$employee}%");
+            });
+        }
+
+        $attendanceLogs = $attendanceQuery
+            ->paginate(15, ['*'], 'attendance_page')
             ->withQueryString();
 
         return view('ms_leave_requests', [
             'user' => $user,
             'leaveRequests' => $leaveRequests,
+            'attendanceLogs' => $attendanceLogs,
+            'attendanceFilters' => $attendanceFilters,
+        ]);
+    }
+
+    public function msAttendanceLogs(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$this->isMs($user)) {
+            abort(403, 'Only Medical Superintendent can view attendance logs.');
+        }
+
+        $filters = $request->validate([
+            'from_date' => 'nullable|date',
+            'to_date' => 'nullable|date|after_or_equal:from_date',
+            'employee' => 'nullable|string|max:255',
+        ]);
+
+        $attendanceQuery = Attendance::query()
+            ->with(['user:id,name,eid,email,department,role_id'])
+            ->whereHas('user', function ($query) {
+                $query->where('role_id', '!=', 1);
+            })
+            ->orderByDesc('date')
+            ->orderByDesc('clock_in');
+
+        if (!empty($filters['from_date'])) {
+            $attendanceQuery->whereDate('date', '>=', $filters['from_date']);
+        }
+
+        if (!empty($filters['to_date'])) {
+            $attendanceQuery->whereDate('date', '<=', $filters['to_date']);
+        }
+
+        if (!empty($filters['employee'])) {
+            $employee = trim((string) $filters['employee']);
+
+            $attendanceQuery->whereHas('user', function ($query) use ($employee) {
+                $query->where('name', 'like', "%{$employee}%")
+                    ->orWhere('eid', 'like', "%{$employee}%")
+                    ->orWhere('email', 'like', "%{$employee}%");
+            });
+        }
+
+        $attendances = $attendanceQuery->paginate(20)->withQueryString();
+
+        return view('ms_attendance_logs', [
+            'user' => $user,
+            'attendances' => $attendances,
+            'filters' => [
+                'from_date' => (string) ($filters['from_date'] ?? ''),
+                'to_date' => (string) ($filters['to_date'] ?? ''),
+                'employee' => (string) ($filters['employee'] ?? ''),
+            ],
         ]);
     }
 
@@ -961,7 +1057,10 @@ class AuthController extends Controller
         ]);
 
         $isForwardedToMs = strtoupper(trim((string) $leaveRequest->submit_to)) === 'MS'
-            && strtoupper(trim((string) $leaveRequest->hod_status)) === 'FORWARDED';
+            && (
+                strtoupper(trim((string) $leaveRequest->hod_status)) === 'FORWARDED'
+                || (bool) $leaveRequest->is_direct_to_ms
+            );
 
         if (!$isForwardedToMs) {
             abort(403, 'This leave request is not available for MS action.');
@@ -1027,6 +1126,7 @@ class AuthController extends Controller
     public function showApplyLeave()
     {
         $user = Auth::user();
+        $isHod = $this->isHod($user);
         $leaveTypes = LeaveType::query()
             ->where('is_active', true)
             ->orderBy('name')
@@ -1039,6 +1139,7 @@ class AuthController extends Controller
 
         return view('apply_leave', [
             'user' => $user,
+            'isHod' => $isHod,
             'leaveTypes' => $leaveTypes,
             'balances' => $balances,
             'leaveHistory' => $leaveHistory,
@@ -1047,6 +1148,10 @@ class AuthController extends Controller
 
     public function applyLeave(Request $request)
     {
+        $user = Auth::user();
+        $isHod = $this->isHod($user);
+        $allowedSubmitTargets = $isHod ? ['MS'] : ['HoD', 'MS'];
+
         $leaveTypes = LeaveType::query()
             ->where('is_active', true)
             ->get();
@@ -1058,7 +1163,7 @@ class AuthController extends Controller
                     $query->where('is_active', true);
                 }),
             ],
-            'submit_to' => ['required', Rule::in(['HoD', 'MS'])],
+            'submit_to' => ['required', Rule::in($allowedSubmitTargets)],
             'start_date' => 'required|date|after_or_equal:today',
             'end_date' => 'required|date|after_or_equal:start_date',
             'total_days' => 'required|numeric|min:0.5',
@@ -1071,8 +1176,7 @@ class AuthController extends Controller
         }
 
         $validated = $request->validate($rules);
-
-        $user = Auth::user();
+        $submitTo = $isHod ? 'MS' : $validated['submit_to'];
         $startDate = Carbon::parse($validated['start_date'])->toDateString();
         $endDate = Carbon::parse($validated['end_date'])->toDateString();
         $totalDays = (float) $validated['total_days'];
@@ -1124,14 +1228,15 @@ class AuthController extends Controller
             'user_id' => $user->id,
             'leave_type_id' => $selectedLeaveType->id,
             'leave_type' => $selectedLeaveType->name,
-            'submit_to' => $validated['submit_to'],
+            'is_direct_to_ms' => $submitTo === 'MS',
+            'submit_to' => $submitTo,
             'start_date' => $startDate,
             'end_date' => $endDate,
             'total_days' => $totalDays,
             'balance' => $balanceAfterRequest,
             'reason' => $validated['reason'],
             'prescription' => $prescriptionPath,
-            'hod_status' => $validated['submit_to'] === 'HoD' ? 'Pending' : 'Forwarded',
+            'hod_status' => $submitTo === 'HoD' ? 'Pending' : '',
             'ms_status' => 'Pending',
         ]);
 
@@ -1446,7 +1551,31 @@ class AuthController extends Controller
 
     private function isAdmin($user): bool
     {
-        return (int) ($user->role_id ?? 0) === 1 || (bool) ($user->is_admin ?? false);
+        if (!$user || !Schema::hasTable('admins')) {
+            return false;
+        }
+
+        $identifiers = collect([
+            trim((string) ($user->eid ?? '')),
+            trim((string) ($user->email ?? '')),
+        ])->filter()->unique()->values()->all();
+
+        if (empty($identifiers)) {
+            return false;
+        }
+
+        static $adminCache = [];
+        $cacheKey = implode('|', $identifiers);
+
+        if (array_key_exists($cacheKey, $adminCache)) {
+            return $adminCache[$cacheKey];
+        }
+
+        $adminCache[$cacheKey] = DB::table('admins')
+            ->whereIn('username', $identifiers)
+            ->exists();
+
+        return $adminCache[$cacheKey];
     }
 
     private function normalizeTime(string $time, string $fallback): string

@@ -13,6 +13,7 @@ class LeaveRequest extends Model
         'user_id',
         'leave_type_id',
         'leave_type',
+        'is_direct_to_ms',
         'submit_to',
         'start_date',
         'end_date',
@@ -27,6 +28,7 @@ class LeaveRequest extends Model
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
+        'is_direct_to_ms' => 'boolean',
         'total_days' => 'decimal:2',
         'balance' => 'decimal:2',
     ];
