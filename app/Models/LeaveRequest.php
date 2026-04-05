@@ -9,6 +9,12 @@ class LeaveRequest extends Model
 {
     use HasFactory;
 
+    protected $primaryKey = 'leave_request_id';
+
+    public $incrementing = true;
+
+    protected $keyType = 'int';
+
     protected $fillable = [
         'user_id',
         'leave_type_id',
@@ -20,6 +26,7 @@ class LeaveRequest extends Model
         'total_days',
         'balance',
         'reason',
+        'rejection_reason',
         'prescription',
         'hod_status',
         'ms_status',
@@ -38,7 +45,7 @@ class LeaveRequest extends Model
      */
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id', 'users_id');
     }
 
     /**
@@ -46,6 +53,11 @@ class LeaveRequest extends Model
      */
     public function leaveType()
     {
-        return $this->belongsTo(LeaveType::class);
+        return $this->belongsTo(LeaveType::class, 'leave_type_id', 'leave_types_id');
+    }
+
+    public function getIdAttribute()
+    {
+        return $this->attributes['leave_request_id'] ?? null;
     }
 }

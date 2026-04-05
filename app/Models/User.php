@@ -12,6 +12,12 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected $primaryKey = 'users_id';
+
+    public $incrementing = true;
+
+    protected $keyType = 'int';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -27,6 +33,10 @@ class User extends Authenticatable
         'role_id',
         'status',
         'profile_picture',
+        'device_id',
+        'verification_code',
+        'verification_code_expires_at',
+        'out_of_station',
     ];
 
     /**
@@ -37,6 +47,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'verification_code',
     ];
 
     /**
@@ -48,6 +59,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'role_id' => 'integer',
+        'verification_code_expires_at' => 'datetime',
     ];
 
     /**
@@ -55,7 +67,7 @@ class User extends Authenticatable
      */
     public function attendances()
     {
-        return $this->hasMany(Attendance::class);
+        return $this->hasMany(Attendance::class, 'user_id', 'users_id');
     }
 
     /**
@@ -63,7 +75,7 @@ class User extends Authenticatable
      */
     public function leaveRequests()
     {
-        return $this->hasMany(LeaveRequest::class);
+        return $this->hasMany(LeaveRequest::class, 'user_id', 'users_id');
     }
 
     /**
@@ -71,7 +83,7 @@ class User extends Authenticatable
      */
     public function role()
     {
-        return $this->belongsTo(Role::class, 'role_id');
+        return $this->belongsTo(Role::class, 'role_id', 'roles_id');
     }
 
     /**
@@ -81,5 +93,10 @@ class User extends Authenticatable
     public function getRoleNameAttribute()
     {
         return $this->role?->name ?? 'Employee';
+    }
+
+    public function getIdAttribute()
+    {
+        return $this->attributes['users_id'] ?? null;
     }
 }

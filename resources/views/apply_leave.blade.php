@@ -4,6 +4,122 @@
 
 @push('styles')
     <style>
+        .employee-page {
+            min-height: 100vh;
+        }
+
+        .employee-layout {
+            display: flex;
+            min-height: 100vh;
+            max-width: 1700px;
+            margin: 0 auto;
+        }
+
+        .employee-sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: #2f3f4a;
+            padding: 24px 20px;
+        }
+
+        .employee-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .employee-avatar-image,
+        .employee-avatar-fallback {
+            width: 48px;
+            height: 48px;
+            border-radius: 999px;
+            object-fit: cover;
+        }
+
+        .employee-avatar-fallback {
+            background: #f97316;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        .employee-profile-meta h2 {
+            margin: 0;
+            color: #fff;
+            font-size: 20px;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+
+        .employee-profile-meta p {
+            margin: 2px 0 0;
+            color: #cbd5e1;
+            font-size: 13px;
+        }
+
+        .employee-nav {
+            display: grid;
+            gap: 6px;
+        }
+
+        .employee-nav a,
+        .employee-nav span {
+            display: block;
+            padding: 10px 12px;
+            border-radius: 8px;
+            color: #e2e8f0;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .employee-nav a:hover {
+            background: rgba(148, 163, 184, 0.18);
+        }
+
+        .employee-nav a.active {
+            background: rgba(20, 184, 166, 0.22);
+            color: #fff;
+        }
+
+        .employee-nav span.disabled {
+            color: #94a3b8;
+        }
+
+        .sidebar-logout-form {
+            margin-top: 6px;
+        }
+
+        .logout-btn {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(148, 163, 184, 0.18);
+            color: #fff;
+        }
+
+        .employee-main {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
         #leave_type,
         #submit_to {
             background-color: #082b30;
@@ -44,32 +160,90 @@
             color: white;
             cursor: pointer;
         }
+
+        @media (max-width: 900px) {
+            .employee-layout {
+                display: block;
+            }
+
+            .employee-sidebar {
+                width: 100%;
+                min-width: 0;
+            }
+        }
     </style>
 @endpush
 
 @section('content')
-    <div class="min-h-screen px-4 pb-8 pt-10 sm:px-6 sm:pb-10 sm:pt-12 lg:px-8 flex items-center justify-center">
-        <div class="max-w-6xl w-full rounded-2xl bg-[#082f34]/80 p-5 text-white shadow-[0_24px_55px_-24px_rgba(0,0,0,0.55)] backdrop-blur md:p-8">
+    <div class="employee-page">
+        <div class="employee-layout">
+            <aside class="employee-sidebar">
+                <div class="employee-profile">
+                    @if($user->profile_picture && file_exists(public_path($user->profile_picture)))
+                        <img src="{{ asset($user->profile_picture) }}" alt="Profile Picture" class="employee-avatar-image">
+                    @else
+                        <div class="employee-avatar-fallback">
+                            {{ strtoupper(substr($user->name, 0, 1)) }}
+                        </div>
+                    @endif
+
+                    <div class="employee-profile-meta">
+                        <h2>{{ $user->name }}</h2>
+                        <p>{{ $user->eid ?? 'N/A' }}</p>
+                    </div>
+
+                    @include('auth.notification_bell_widget')
+                </div>
+
+                <nav class="employee-nav">
+                    <a href="{{ route('dashboard') }}">My Dashboard</a>
+
+                    @if($isMs)
+                        <a href="{{ route('ms.leave.requests') }}">MS Dashboard</a>
+                    @else
+                        <span class="disabled">MS Dashboard</span>
+                    @endif
+
+                    @if($isHod)
+                        <a href="{{ route('hod.leave.requests') }}" class="leave-approve-link" style="position:relative; display:block;">
+                            <span style="display:inline-block;">Leave Approve</span>
+                            @if(!empty($leaveApproveCount) && $leaveApproveCount > 0)
+                                <span class="leave-approve-badge" style="position:absolute; right:16px; top:50%; transform:translateY(-50%); background:#fff; color:#2f3f4a; display:inline-flex; align-items:center; justify-content:center; border-radius:16px; font-size:14px; font-weight:700; box-shadow:0 1px 4px rgba(0,0,0,0.08); padding:0 10px; height:auto; min-width:0;">{{ $leaveApproveCount }}</span>
+                            @endif
+                        </a>
+                        <a href="{{ route('hod.staff.list') }}">Staff List</a>
+                    @else
+                        <span class="disabled">Leave Approve</span>
+                    @endif
+
+                    <a href="{{ route('attendance.history') }}">Attendance</a>
+                    <a href="{{ route('leave.create') }}" class="active">Leave</a>
+                    <a href="{{ route('tour.records') }}">Tour</a>
+                </nav>
+
+                <form method="POST" action="{{ route('logout') }}" class="sidebar-logout-form">
+                    @csrf
+                    <button type="submit" class="logout-btn">Logout</button>
+                </form>
+            </aside>
+
+            <main class="employee-main">
+                <div class="max-w-6xl w-full rounded-2xl bg-[#082f34]/80 p-5 text-white shadow-[0_24px_55px_-24px_rgba(0,0,0,0.55)] backdrop-blur md:p-8">
             <div class="mb-5 h-px w-full bg-gradient-to-r from-cyan-200/0 via-cyan-200/45 to-cyan-200/0"></div>
             <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 class="text-3xl font-bold tracking-tight text-white md:text-4xl">Leave</h1>
                     <p class="mt-1 text-sm text-white/70">Submit leave requests and review your request history</p>
                 </div>
-                <a href="{{ route('dashboard') }}" class="inline-flex items-center justify-center rounded-lg border border-cyan-300/30 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-500/20">
-                    Back
-                </a>
             </div>
 
-            @if(session('success'))
-                <div class="mb-4 rounded-lg border border-emerald-300/25 bg-emerald-500/10 p-3">
-                    <p class="text-sm text-emerald-200">{{ session('success') }}</p>
-                </div>
-            @endif
-
-            @if(session('error'))
-                <div class="mb-4 rounded-lg border border-red-300/25 bg-red-500/10 p-3">
-                    <p class="text-sm text-red-200">{{ session('error') }}</p>
+            @if(session('success') || session('error'))
+                <div id="global-notification-toast" class="fixed top-6 left-1/2 z-50 w-[calc(100%-36px)] max-w-md -translate-x-1/2 rounded-xl border bg-slate-900/90 p-4 text-white shadow-2xl backdrop-blur-lg">
+                    <div class="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-300">Notification</div>
+                    <div class="flex items-center justify-between gap-4">
+                        <p class="text-sm font-medium {{ session('success') ? 'text-emerald-300' : 'text-rose-300' }}">{{ session('success') ?? session('error') }}</p>
+                        <button id="closePopup" type="button" class="rounded-lg border border-white/20 px-3 py-1 text-xs text-white/80 hover:bg-white/10">Close</button>
+                    </div>
                 </div>
             @endif
 
@@ -149,42 +323,58 @@
                 <h2 class="mb-4 text-xl font-bold text-white md:text-2xl">Leave History</h2>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full min-w-[820px] text-left text-sm text-white/80">
-                        <thead class="bg-white/5 text-xs uppercase tracking-wide text-white/60">
+                    <style>
+                        .leave-history-table th,
+                        .leave-history-table td {
+                            min-width: 0;
+                            word-break: break-word;
+                        }
+                    </style>
+                    @php
+                        $columnCount = 5 + (!$isHod ? 4 : 1);
+                        $columnWidth = 100 / $columnCount;
+                    @endphp
+                    <table class="leave-history-table w-full table-fixed border-collapse text-left text-sm text-white/80">
+                        <colgroup>
+                            @for ($i = 0; $i < $columnCount; $i++)
+                                <col style="width: {{ $columnWidth }}%; min-width: 0;" />
+                            @endfor
+                        </colgroup>
+                        <thead class="bg-white/5 text-xs uppercase tracking-[0.18em] text-white/60">
                             <tr class="border-b border-white/10">
-                                <th class="px-3 py-3 font-semibold">Type</th>
-                                <th class="px-3 py-3 font-semibold">S.date</th>
-                                <th class="px-3 py-3 font-semibold">E.date</th>
-                                <th class="px-3 py-3 font-semibold">Reason</th>
-                                <th class="px-3 py-3 font-semibold">Days</th>
+                                <th class="px-4 py-3 font-semibold text-left">Leave Type</th>
+                                <th class="px-4 py-3 font-semibold text-left">Start Date</th>
+                                <th class="px-4 py-3 font-semibold text-left">End Date</th>
+                                <th class="px-4 py-3 font-semibold text-left">Reason</th>
+                                <th class="px-4 py-3 font-semibold text-left">Days</th>
                                 @unless($isHod)
-                                    <th class="px-3 py-3 font-semibold">HoD</th>
+                                    <th class="px-4 py-3 font-semibold text-left">HoD</th>
                                 @endunless
                                 @unless($isHod)
-                                    <th class="px-3 py-3 font-semibold">MS</th>
+                                    <th class="px-4 py-3 font-semibold text-left">MS</th>
                                 @endunless
                                 @unless($isHod)
-                                    <th class="px-3 py-3 font-semibold">HoD Status</th>
+                                    <th class="px-4 py-3 font-semibold text-left">HoD Status</th>
                                 @endunless
-                                <th class="px-3 py-3 font-semibold">MS Status</th>
+                                <th class="px-4 py-3 font-semibold text-left">MS Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($leaveHistory as $leave)
-                                <tr class="border-b border-white/10 hover:bg-white/5">
-                                    <td class="px-3 py-3 font-medium text-white">{{ str_replace(' ', '_', $leave->leaveType?->name ?? $leave->leave_type) }}</td>
-                                    <td class="px-3 py-3">{{ \Carbon\Carbon::parse($leave->start_date)->format('Y-m-d') }}</td>
-                                    <td class="px-3 py-3">{{ \Carbon\Carbon::parse($leave->end_date)->format('Y-m-d') }}</td>
-                                    <td class="px-3 py-3">{{ $leave->reason }}</td>
-                                    <td class="px-3 py-3 font-medium">{{ number_format((float) $leave->total_days, 2) }}</td>
+                                <tr class="border-b border-white/10 bg-slate-950/10 transition hover:bg-white/10">
+                                    <td class="px-4 py-4 align-middle font-medium text-white">{{ str_replace(' ', '_', $leave->leaveType?->name ?? $leave->leave_type) }}</td>
+                                    <td class="px-4 py-4 align-middle">{{ \Carbon\Carbon::parse($leave->start_date)->format('Y-m-d') }}</td>
+                                    <td class="px-4 py-4 align-middle">{{ \Carbon\Carbon::parse($leave->end_date)->format('Y-m-d') }}</td>
+                                    <td class="px-4 py-4 align-middle">{{ $leave->reason }}</td>
+                                    <td class="px-4 py-4 align-middle font-medium">{{ number_format((float) $leave->total_days, 2) }}</td>
                                     @unless($isHod)
-                                        <td class="px-3 py-3">{{ $leave->is_direct_to_ms ? '-' : 'HoD' }}</td>
+                                        <td class="px-4 py-4 align-middle">{{ $leave->is_direct_to_ms ? '-' : 'HoD' }}</td>
                                     @endunless
                                     @unless($isHod)
-                                        <td class="px-3 py-3">{{ $leave->is_direct_to_ms ? 'MS' : '-' }}</td>
+                                        <td class="px-4 py-4 align-middle">{{ $leave->is_direct_to_ms ? 'MS' : '-' }}</td>
                                     @endunless
                                     @unless($isHod)
-                                        <td class="px-3 py-3">
+                                        <td class="px-4 py-4 align-middle">
                                             @if($leave->is_direct_to_ms)
                                                 <span class="text-white/50">-</span>
                                             @elseif(strtolower((string) $leave->hod_status) === 'pending')
@@ -200,7 +390,7 @@
                                             @endif
                                         </td>
                                     @endunless
-                                    <td class="px-3 py-3">
+                                    <td class="px-4 py-4 align-middle">
                                         @if(strtolower($leave->ms_status) === 'pending')
                                             <span class="inline-flex rounded-full bg-amber-500/20 px-2.5 py-1 text-xs font-semibold text-amber-200">{{ $leave->ms_status }}</span>
                                         @elseif(strtolower($leave->ms_status) === 'approved')
@@ -223,6 +413,8 @@
             </div>
 
             <div id="leaveBalancesData" data-balances='@json($balances)'></div>
+        </div>
+            </main>
         </div>
     </div>
 
@@ -268,5 +460,20 @@
 
         updateBalance();
         togglePrescriptionField();
+
+        // Toast close logic
+        const closePopupBtn = document.getElementById('closePopup');
+        if (closePopupBtn) {
+            closePopupBtn.addEventListener('click', function () {
+                const toast = document.getElementById('global-notification-toast');
+                if (toast) toast.remove();
+            });
+        }
+
+        // Auto hide after 4 seconds, if still present
+        const toastEl = document.getElementById('global-notification-toast');
+        if (toastEl) {
+            setTimeout(() => toastEl.remove(), 4000);
+        }
     </script>
 @endsection

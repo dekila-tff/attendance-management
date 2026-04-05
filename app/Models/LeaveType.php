@@ -9,6 +9,12 @@ class LeaveType extends Model
 {
     use HasFactory;
 
+    protected $primaryKey = 'leave_types_id';
+
+    public $incrementing = true;
+
+    protected $keyType = 'int';
+
     protected $fillable = [
         'name',
         'code',
@@ -27,6 +33,11 @@ class LeaveType extends Model
      */
     public function leaveRequests()
     {
-        return $this->hasMany(LeaveRequest::class);
+        return $this->hasMany(LeaveRequest::class, 'leave_type_id', 'leave_types_id');
+    }
+
+    public function getIdAttribute()
+    {
+        return $this->attributes['leave_types_id'] ?? null;
     }
 }

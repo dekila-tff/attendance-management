@@ -13,11 +13,15 @@ use App\Models\Attendance;
 use App\Models\DepartmentShift;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\Tour;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use App\Notifications\LeaveRejectedBellNotification;
 
 class AuthController extends Controller
 {
@@ -26,9 +30,58 @@ class AuthController extends Controller
         return view('login');
     }
 
+    public function showRegister()
+    {
+        $selfRegisterRoles = Role::query()
+            ->whereIn('id', [1, 2, 3])
+            ->whereRaw("LOWER(COALESCE(status, 'active')) = ?", ['active'])
+            ->orderBy('id')
+            ->get(['id', 'name']);
+
+        if ($selfRegisterRoles->isEmpty()) {
+            $selfRegisterRoles = collect([
+                (object) ['id' => 1, 'name' => 'Medical Superintendent'],
+                (object) ['id' => 2, 'name' => 'HoD'],
+                (object) ['id' => 3, 'name' => 'Employee'],
+            ]);
+        }
+
+        return view('register', [
+            'selfRegisterRoles' => $selfRegisterRoles,
+        ]);
+    }
+
     public function showAdminLogin()
     {
         return view('admin_login');
+    }
+
+    public function testMail(Request $request)
+    {
+        if (!app()->environment('local')) {
+            abort(403, 'Test mail endpoint is only available in local environment.');
+        }
+
+        $validated = $request->validate([
+            'to' => 'nullable|email',
+        ]);
+
+        $to = (string) ($validated['to'] ?? config('mail.from.address') ?? env('MAIL_USERNAME', ''));
+
+        if ($to === '') {
+            return response('No recipient email found. Pass ?to=you@example.com in URL.', 422);
+        }
+
+        Mail::raw(
+            "This is a test email from Attendance Management System.\n\nIf you received this, SMTP is working.",
+            function ($message) use ($to) {
+                $message
+                    ->to($to)
+                    ->subject('SMTP Test Email');
+            }
+        );
+
+        return response('Test mail sent successfully to ' . $to . '.', 200);
     }
 
     public function login(Request $request)
@@ -38,19 +91,121 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        // Try to authenticate using the username field as email
+        // Authenticate employee users by EID via the username input.
         $credentials = [
-            'email' => $request->username,
+            'eid' => $request->username,
             'password' => $request->password,
         ];
 
         if (Auth::attempt($credentials, $request->filled('remember'))) {
             $request->session()->regenerate();
-
             return redirect()->intended(route('dashboard'));
         }
 
         return back()->withErrors(['username' => 'The provided credentials do not match our records.'])->withInput($request->only('username'));
+    }
+
+    public function register(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email',
+            'eid' => 'required|string|max:255|unique:users,eid',
+            'designation' => 'nullable|string|max:255',
+            'department' => 'nullable|string|max:255',
+            'role_id' => ['required', Rule::in([1, 2, 3])],
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user = User::create([
+            'name' => trim((string) $validated['name']),
+            'email' => strtolower((string) $validated['email']),
+            'eid' => trim((string) $validated['eid']),
+            'designation' => $validated['designation'] ? trim((string) $validated['designation']) : null,
+            'department' => $validated['department'] ? trim((string) $validated['department']) : null,
+            'role_id' => (int) $validated['role_id'],
+            'status' => 'Active',
+            'password' => $validated['password'],
+            'email_verified_at' => Carbon::now(),
+        ]);
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return redirect()->route('dashboard')
+            ->with('success', 'Account created successfully!');
+    }
+
+    public function showDeviceVerification(Request $request)
+    {
+        $pendingUserId = (int) $request->session()->get('pending_verification_user_id', 0);
+
+        if ($pendingUserId <= 0) {
+            return redirect()->route('register')->withErrors([
+                'email' => 'Please register or log in first to start verification.',
+            ]);
+        }
+
+        return view('verify_device');
+    }
+
+    public function verifyDevice(Request $request)
+    {
+        $validated = $request->validate([
+            'verification_code' => 'required|digits:6',
+            'device_id' => 'required|string|max:120',
+        ]);
+
+        $pendingUserId = (int) $request->session()->get('pending_verification_user_id', 0);
+
+        if ($pendingUserId <= 0) {
+            return redirect()->route('register')->withErrors([
+                'email' => 'Verification session expired. Please register or log in again.',
+            ]);
+        }
+
+        $user = User::find($pendingUserId);
+
+        if (!$user) {
+            $request->session()->forget(['pending_verification_user_id', 'pending_verification_device_id']);
+
+            return redirect()->route('register')->withErrors([
+                'email' => 'User account not found. Please register again.',
+            ]);
+        }
+
+        if (!$user->verification_code || !$user->verification_code_expires_at) {
+            return back()->withErrors([
+                'verification_code' => 'No valid verification code found. Please log in again to request a new one.',
+            ]);
+        }
+
+        if (Carbon::now()->gt($user->verification_code_expires_at)) {
+            return back()->withErrors([
+                'verification_code' => 'Verification code has expired. Please log in again to request a new one.',
+            ]);
+        }
+
+        if (!Hash::check((string) $validated['verification_code'], (string) $user->verification_code)) {
+            return back()->withErrors([
+                'verification_code' => 'Invalid verification code.',
+            ])->withInput($request->except('verification_code'));
+        }
+
+        $user->update([
+            'device_id' => trim((string) $validated['device_id']),
+            'email_verified_at' => Carbon::now(),
+            'verification_code' => null,
+            'verification_code_expires_at' => null,
+        ]);
+
+        Auth::login($user);
+        $request->session()->regenerate();
+        $request->session()->forget(['pending_verification_user_id', 'pending_verification_device_id']);
+
+        return redirect()->route('dashboard')
+            ->with('success', 'Email verified and device bound successfully.')
+            ->with('device_bound', true);
     }
 
     public function adminLogin(Request $request)
@@ -60,57 +215,48 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        $admin = DB::table('admins')
-            ->where('username', $request->username)
-            ->first();
+        $credentials = [
+            'username' => trim((string) $request->username),
+            'password' => $request->password,
+        ];
 
-        if (! $admin || ! Hash::check($request->password, (string) $admin->password)) {
+        if (!Auth::guard('admin')->attempt($credentials)) {
             return back()->withErrors([
                 'username' => 'The provided credentials do not match our records.',
             ])->withInput($request->only('username'));
         }
 
-        $user = User::query()
-            ->where('eid', (string) $admin->username)
-            ->orWhere('email', (string) $admin->username)
-            ->first();
-
-        if (! $user) {
-            return back()->withErrors([
-                'username' => 'Admin account is not linked to any user account.',
-            ])->withInput($request->only('username'));
-        }
-
-        Auth::login($user, $request->filled('remember'));
-
         $request->session()->regenerate();
 
-        if (!$this->isAdmin(Auth::user())) {
-            Auth::logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-
-            return back()->withErrors([
-                'username' => 'This account is not allowed to use admin login.',
-            ])->withInput($request->only('username'));
-        }
-
-        return redirect()->intended(route('dashboard'));
+        return redirect()->intended(route('admin.dashboard'));
     }
 
-    public function logout(Request $request)
+    public function logoutUser(Request $request)
     {
-        Auth::logout();
+        Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         return redirect(route('login'));
     }
 
+    public function logoutAdmin(Request $request)
+    {
+        Auth::guard('admin')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect(route('admin.login'));
+    }
+
     public function dashboard(Request $request)
     {
-        $user = Auth::user();
+        if ($request->routeIs('admin.dashboard')) {
+            $user = Auth::guard('admin')->user();
 
-        if ($this->isAdmin($user)) {
+            if (!$user) {
+                abort(403, 'Admin authentication required.');
+            }
+
             $activeSection = (string) $request->query('section', 'roles-permissions');
             $showCreateUserForm = (bool) $request->boolean('create_user');
             $attendanceFilters = [
@@ -138,20 +284,26 @@ class AuthController extends Controller
             $managedLeaveTypes = null;
             $showAddLeaveTypeForm = (bool) $request->boolean('add_leave_type');
             $editingLeaveType = null;
+            $managedLeaveRecords = null;
             $leaveBalanceEmployees = collect();
             $leaveBalanceTypes = collect();
             $leaveBalanceRows = collect();
             $leaveBalanceYear = (int) Carbon::now()->year;
+            $bonusIpdEmployees = collect();
 
             if ($activeSection === 'roles-permissions') {
-                $managedRoles = Role::query()->orderByDesc('id')->get();
-                $managedPermissions = Permission::query()->orderByDesc('id')->get();
+                $managedRoles = Role::query()->orderByDesc('roles_id')->get();
+                $managedPermissions = Permission::query()->orderByDesc('permissions_id')->get();
+                $userColumns = ['id', 'name', 'eid', 'role_id'];
+                if (Schema::hasColumn('users', 'email')) {
+                    $userColumns[] = 'email';
+                }
                 $roleAssignableUsers = User::query()
                     ->orderBy('name')
-                    ->get(['id', 'name', 'eid', 'email', 'role_id']);
+                    ->get($userColumns);
 
                 if ($selectedRoleIdForPermissions > 0) {
-                    $selectedRole = Role::query()->with('permissions:id')->find($selectedRoleIdForPermissions);
+                    $selectedRole = Role::query()->with('permissions:permissions_id,name')->find($selectedRoleIdForPermissions);
                     $assignedPermissionIds = $selectedRole
                         ? $selectedRole->permissions->pluck('id')->map(fn ($id) => (int) $id)->all()
                         : [];
@@ -191,13 +343,17 @@ class AuthController extends Controller
 
                 if ($userFilters['search'] !== '') {
                     $term = $userFilters['search'];
+                    $hasEmailColumn = Schema::hasColumn('users', 'email');
 
-                    $usersQuery->where(function ($query) use ($term) {
+                    $usersQuery->where(function ($query) use ($term, $hasEmailColumn) {
                         $query->where('name', 'like', "%{$term}%")
                             ->orWhere('eid', 'like', "%{$term}%")
-                            ->orWhere('email', 'like', "%{$term}%")
                             ->orWhere('department', 'like', "%{$term}%")
                             ->orWhere('designation', 'like', "%{$term}%");
+
+                        if ($hasEmailColumn) {
+                            $query->orWhere('email', 'like', "%{$term}%");
+                        }
                     });
                 }
 
@@ -284,7 +440,7 @@ class AuthController extends Controller
 
             if ($activeSection === 'attendance-logs') {
                 $attendanceQuery = Attendance::query()
-                    ->with(['user:id,name,eid,department'])
+                    ->with(['user:users_id,name,eid,department'])
                     ->orderByDesc('date')
                     ->orderByDesc('clock_in');
 
@@ -307,6 +463,30 @@ class AuthController extends Controller
                 }
 
                 $adminAttendances = $attendanceQuery->paginate(20)->withQueryString();
+            }
+
+            if ($activeSection === 'leave-records') {
+                $managedLeaveRecords = LeaveRequest::query()
+                    ->with(['user:users_id,name,eid,department', 'leaveType:id,name'])
+                    ->where('ms_status', 'Approved')
+                    ->orderByDesc('updated_at')
+                    ->orderByDesc('id')
+                    ->paginate(20, ['*'], 'leave_records_page')
+                    ->withQueryString();
+            }
+
+            if ($activeSection === 'reports' && (string) $request->query('report') === 'bonus') {
+                $bonusIpdEmployees = User::query()
+                    ->whereRaw("LOWER(COALESCE(department, '')) = ?", ['ipd'])
+                    ->whereHas('attendances', function ($query) {
+                        $query->whereNotNull('clock_in')
+                            ->where(function ($nightQuery) {
+                                $nightQuery->where('shift_is_overnight', true)
+                                    ->orWhere('shift_name', 'like', '%night%');
+                            });
+                    })
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'eid', 'department']);
             }
 
             return view('dashboard_admin', [
@@ -332,11 +512,19 @@ class AuthController extends Controller
                 'managedLeaveTypes' => $managedLeaveTypes,
                 'showAddLeaveTypeForm' => $showAddLeaveTypeForm,
                 'editingLeaveType' => $editingLeaveType,
+                'managedLeaveRecords' => $managedLeaveRecords,
                 'leaveBalanceEmployees' => $leaveBalanceEmployees,
                 'leaveBalanceTypes' => $leaveBalanceTypes,
                 'leaveBalanceRows' => $leaveBalanceRows,
                 'leaveBalanceYear' => $leaveBalanceYear,
+                'bonusIpdEmployees' => $bonusIpdEmployees,
             ]);
+        }
+
+        $user = Auth::guard('web')->user();
+
+        if (!$user) {
+            abort(403, 'Authentication required.');
         }
         
         // Get today's attendance record
@@ -358,14 +546,46 @@ class AuthController extends Controller
             ? Carbon::now()->lt($clockOutAt)
             : Carbon::now()->lt($shift['clock_out_after_at']);
         
+        $isHod = $this->isHod($user);
+        $isMs = $this->isMs($user);
+        $leaveApproveCount = 0;
+        $tourRecords = collect();
+
+        if (!$isMs && Schema::hasTable('tour')) {
+            $currentUserId = $user->users_id ?? $user->id ?? null;
+
+            if ($currentUserId !== null) {
+                $tourRecords = Tour::query()
+                    ->with('department')
+                    ->where('users_id', $currentUserId)
+                    ->orderByDesc('start_date')
+                    ->orderByDesc('tour_id')
+                    ->limit(6)
+                    ->get();
+            }
+        }
+
+        if ($isHod) {
+            $leaveApproveCount = LeaveRequest::query()
+                ->where('submit_to', 'HoD')
+                ->where('hod_status', 'Pending')
+                ->whereHas('user', function ($query) use ($user) {
+                    $query->where('department', $user->department)
+                        ->where('users_id', '!=', $user->id);
+                })
+                ->count();
+        }
+
         return view('dashboard_employee', [
             'user' => $user,
             'attendance' => $attendance,
             'clockOutLocked' => $clockOutLocked,
             'clockOutUnlockTime' => $clockOutAt->format('g:i A'),
             'shiftName' => $shift['name'],
-            'isHod' => $this->isHod($user),
-            'isMs' => $this->isMs($user),
+            'isHod' => $isHod,
+            'isMs' => $isMs,
+            'leaveApproveCount' => $leaveApproveCount,
+            'tourRecords' => $tourRecords,
         ]);
     }
 
@@ -383,7 +603,7 @@ class AuthController extends Controller
                 'nullable',
                 'string',
                 'max:255',
-                Rule::unique('users', 'eid')->ignore($user->id),
+                Rule::unique('users', 'eid')->ignore($user->id, 'users_id'),
             ],
             'designation' => 'nullable|string|max:255',
             'department' => 'nullable|string|max:255',
@@ -405,7 +625,7 @@ class AuthController extends Controller
         ]);
 
         return redirect()
-            ->route('dashboard', ['section' => 'user-management'])
+            ->route('admin.dashboard', ['section' => 'user-management'])
             ->with('success', 'User updated successfully.');
     }
 
@@ -440,7 +660,7 @@ class AuthController extends Controller
         ]);
 
         return redirect()
-            ->route('dashboard', ['section' => 'user-management'])
+            ->route('admin.dashboard', ['section' => 'user-management'])
             ->with('success', 'New user created successfully.');
     }
 
@@ -459,15 +679,68 @@ class AuthController extends Controller
 
         if ($user->id === $admin->id && $newStatus === 'Inactive') {
             return redirect()
-                ->route('dashboard', ['section' => 'user-management'])
+                ->route('admin.dashboard', ['section' => 'user-management'])
                 ->with('error', 'You cannot deactivate your own account.');
         }
 
         $user->update(['status' => $newStatus]);
 
         return redirect()
-            ->route('dashboard', ['section' => 'user-management'])
+            ->route('admin.dashboard', ['section' => 'user-management'])
             ->with('success', 'User status updated to ' . $newStatus . '.');
+    }
+
+    public function adminDeleteUser(User $user)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can delete users.');
+        }
+
+        if ($user->id === $admin->id) {
+            return redirect()
+                ->route('admin.dashboard', ['section' => 'user-management'])
+                ->with('error', 'You cannot delete your own account.');
+        }
+
+        $user->delete();
+
+        if (DB::table('users')->count() === 0) {
+            DB::statement('ALTER TABLE users AUTO_INCREMENT = 1');
+        }
+
+        return redirect()
+            ->route('admin.dashboard', ['section' => 'user-management'])
+            ->with('success', 'User deleted successfully.');
+    }
+
+    public function adminResetUserPassword(Request $request, User $user)
+    {
+        $admin = Auth::user();
+
+        if (!$this->isAdmin($admin)) {
+            abort(403, 'Only admin can reset user passwords.');
+        }
+
+        $validated = $request->validate([
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user->update([
+            'password' => $validated['password'],
+        ]);
+
+        $routeParams = ['section' => 'user-management'];
+        $search = trim((string) $request->input('user_search', ''));
+
+        if ($search !== '') {
+            $routeParams['user_search'] = $search;
+        }
+
+        return redirect()
+            ->route('admin.dashboard', $routeParams)
+            ->with('success', 'Password reset successfully for ' . $user->name . '.');
     }
 
     public function adminStoreDepartment(Request $request)
@@ -489,7 +762,7 @@ class AuthController extends Controller
         ]);
 
         return redirect()
-            ->route('dashboard', ['section' => 'department-hod-management'])
+            ->route('admin.dashboard', ['section' => 'department-hod-management'])
             ->with('success', 'Department added successfully.');
     }
 
@@ -512,7 +785,7 @@ class AuthController extends Controller
         ]);
 
         return redirect()
-            ->route('dashboard', ['section' => 'department-hod-management'])
+            ->route('admin.dashboard', ['section' => 'department-hod-management'])
             ->with('success', 'Department updated successfully.');
     }
 
@@ -545,7 +818,7 @@ class AuthController extends Controller
         }
 
         return redirect()
-            ->route('dashboard', ['section' => 'department-hod-management'])
+            ->route('admin.dashboard', ['section' => 'department-hod-management'])
             ->with('success', 'HoD assigned successfully.');
     }
 
@@ -567,7 +840,7 @@ class AuthController extends Controller
         ]);
 
         return redirect()
-            ->route('dashboard', ['section' => 'department-hod-management'])
+            ->route('admin.dashboard', ['section' => 'department-hod-management'])
             ->with('success', 'Department status updated to ' . $newStatus . '.');
     }
 
@@ -609,7 +882,7 @@ class AuthController extends Controller
         }
 
         return redirect()
-            ->route('dashboard', ['section' => 'roles-permissions'])
+            ->route('admin.dashboard', ['section' => 'roles-permissions'])
             ->with('success', $message);
     }
 
@@ -651,7 +924,7 @@ class AuthController extends Controller
         }
 
         return redirect()
-            ->route('dashboard', ['section' => 'roles-permissions'])
+            ->route('admin.dashboard', ['section' => 'roles-permissions'])
             ->with('success', $message);
     }
 
@@ -675,7 +948,7 @@ class AuthController extends Controller
         $role->permissions()->sync($permissionIds);
 
         return redirect()
-            ->route('dashboard', [
+            ->route('admin.dashboard', [
                 'section' => 'roles-permissions',
                 'assign_role_id' => $role->id,
             ])
@@ -699,7 +972,7 @@ class AuthController extends Controller
         $selectedUser->update(['role_id' => (int) $role->id]);
 
         return redirect()
-            ->route('dashboard', ['section' => 'roles-permissions'])
+            ->route('admin.dashboard', ['section' => 'roles-permissions'])
             ->with('success', 'Role assigned to ' . $selectedUser->name . ' successfully.');
     }
 
@@ -728,7 +1001,7 @@ class AuthController extends Controller
         ]);
 
         return redirect()
-            ->route('dashboard', ['section' => 'leave-types'])
+            ->route('admin.dashboard', ['section' => 'leave-types'])
             ->with('success', 'Leave type added successfully.');
     }
 
@@ -757,7 +1030,7 @@ class AuthController extends Controller
         ]);
 
         return redirect()
-            ->route('dashboard', ['section' => 'leave-types'])
+            ->route('admin.dashboard', ['section' => 'leave-types'])
             ->with('success', 'Leave type updated successfully.');
     }
 
@@ -774,7 +1047,7 @@ class AuthController extends Controller
         ]);
 
         return redirect()
-            ->route('dashboard', ['section' => 'leave-types'])
+            ->route('admin.dashboard', ['section' => 'leave-types'])
             ->with('success', 'Leave type status updated successfully.');
     }
 
@@ -803,7 +1076,7 @@ class AuthController extends Controller
         );
 
         return redirect()
-            ->route('dashboard', ['section' => 'leave-balance'])
+            ->route('admin.dashboard', ['section' => 'leave-balance'])
             ->with('success', 'Leave balance set successfully.');
     }
 
@@ -837,7 +1110,7 @@ class AuthController extends Controller
         ]);
 
         return redirect()
-            ->route('dashboard', ['section' => 'leave-balance'])
+            ->route('admin.dashboard', ['section' => 'leave-balance'])
             ->with('success', 'Leave balance adjusted successfully.');
     }
 
@@ -854,32 +1127,80 @@ class AuthController extends Controller
         ]);
 
         return redirect()
-            ->route('dashboard', ['section' => 'leave-balance'])
+            ->route('admin.dashboard', ['section' => 'leave-balance'])
             ->with('success', 'All leave balance adjustments were reset successfully.');
     }
 
     public function hodLeaveRequests(Request $request)
     {
         $user = Auth::user();
+        $isHod = $this->isHod($user);
+        $isMs = $this->isMs($user);
 
-        if (!$this->isHod($user)) {
+        if (!$isHod) {
             abort(403, 'Only HoD can view employee leave requests.');
         }
 
         $leaveRequests = LeaveRequest::query()
             ->with(['user', 'leaveType'])
-            ->where('submit_to', 'HoD')
             ->whereHas('user', function ($query) use ($user) {
                 $query->where('department', $user->department)
-                    ->where('id', '!=', $user->id);
+                    ->where('users_id', '!=', $user->id);
             })
             ->orderByDesc('created_at')
             ->paginate(15)
             ->withQueryString();
 
+        $leaveApproveCount = LeaveRequest::query()
+            ->where('submit_to', 'HoD')
+            ->where('hod_status', 'Pending')
+            ->whereHas('user', function ($query) use ($user) {
+                $query->where('department', $user->department)
+                    ->where('users_id', '!=', $user->id);
+            })
+            ->count();
+
         return view('hod_leave_requests', [
             'user' => $user,
+            'isHod' => $isHod,
+            'isMs' => $isMs,
+            'leaveApproveCount' => $leaveApproveCount,
             'leaveRequests' => $leaveRequests,
+        ]);
+    }
+
+    public function hodStaffList(Request $request)
+    {
+        $user = Auth::user();
+        $isHod = $this->isHod($user);
+        $isMs = $this->isMs($user);
+
+        if (!$isHod) {
+            abort(403, 'Only HoD can view staff list.');
+        }
+
+        $leaveApproveCount = LeaveRequest::query()
+            ->where('submit_to', 'HoD')
+            ->where('hod_status', 'Pending')
+            ->whereHas('user', function ($query) use ($user) {
+                $query->where('department', $user->department)
+                    ->where('users_id', '!=', $user->id);
+            })
+            ->count();
+
+        $staffMembers = User::query()
+            ->where('department', $user->department)
+            ->where('users_id', '!=', $user->id)
+            ->orderBy('name')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('hod_staff_list', [
+            'user' => $user,
+            'isHod' => $isHod,
+            'isMs' => $isMs,
+            'leaveApproveCount' => $leaveApproveCount,
+            'staffMembers' => $staffMembers,
         ]);
     }
 
@@ -893,7 +1214,14 @@ class AuthController extends Controller
 
         $validated = $request->validate([
             'action' => ['required', Rule::in(['forward', 'reject'])],
+            'rejection_reason' => ['nullable', 'string', 'max:1000', 'required_if:action,reject'],
         ]);
+
+        $rejectionReason = trim((string) ($validated['rejection_reason'] ?? ''));
+
+        if ($validated['action'] === 'reject' && $rejectionReason === '') {
+            return back()->with('error', 'Please provide a reason before rejecting this leave request.');
+        }
 
         $leaveRequest->loadMissing('user');
 
@@ -915,6 +1243,7 @@ class AuthController extends Controller
                 'submit_to' => 'MS',
                 'ms_status' => 'Pending',
                 'is_direct_to_ms' => false,
+                'rejection_reason' => null,
             ]);
 
             return back()->with('success', 'Leave request forwarded to MS.');
@@ -923,9 +1252,20 @@ class AuthController extends Controller
         $leaveRequest->update([
             'hod_status' => 'Rejected',
             'ms_status' => 'Rejected',
+            'rejection_reason' => $rejectionReason,
         ]);
 
-        return back()->with('success', 'Leave request rejected by HoD.');
+        if ($leaveRequest->user) {
+            $leaveRequest->user->notify(new LeaveRejectedBellNotification($leaveRequest, 'HoD'));
+        }
+
+        $mailSent = $this->sendLeaveStatusEmail($leaveRequest, 'Rejected', 'HoD');
+
+        if (! $mailSent) {
+            return back()->with('warning', 'Leave request rejected by HoD. Notification email could not be delivered.');
+        }
+
+        return back()->with('success', 'Leave request rejected by HoD. Notification email sent.');
     }
 
     public function msLeaveRequests(Request $request)
@@ -954,7 +1294,7 @@ class AuthController extends Controller
         ];
 
         $attendanceQuery = Attendance::query()
-            ->with(['user:id,name,eid,email,department,role_id'])
+            ->with(['user:users_id,name,eid,email,department,role_id'])
             ->whereHas('user', function ($query) {
                 $query->where('role_id', '!=', 1);
             })
@@ -1006,7 +1346,7 @@ class AuthController extends Controller
         ]);
 
         $attendanceQuery = Attendance::query()
-            ->with(['user:id,name,eid,email,department,role_id'])
+            ->with(['user:users_id,name,eid,email,department,role_id'])
             ->whereHas('user', function ($query) {
                 $query->where('role_id', '!=', 1);
             })
@@ -1056,6 +1396,8 @@ class AuthController extends Controller
             'action' => ['required', Rule::in(['approve', 'reject'])],
         ]);
 
+        $leaveRequest->loadMissing(['user', 'leaveType']);
+
         $isForwardedToMs = strtoupper(trim((string) $leaveRequest->submit_to)) === 'MS'
             && (
                 strtoupper(trim((string) $leaveRequest->hod_status)) === 'FORWARDED'
@@ -1075,14 +1417,30 @@ class AuthController extends Controller
                 'ms_status' => 'Approved',
             ]);
 
-            return back()->with('success', 'Leave request approved by MS.');
+            $mailSent = $this->sendLeaveStatusEmail($leaveRequest, 'Approved', 'MS');
+
+            if (! $mailSent) {
+                return back()->with('warning', 'Leave request approved by MS. Notification email could not be delivered.');
+            }
+
+            return back()->with('success', 'Leave request approved by MS. Notification email sent.');
         }
 
         $leaveRequest->update([
             'ms_status' => 'Rejected',
         ]);
 
-        return back()->with('success', 'Leave request rejected by MS.');
+        if ($leaveRequest->user) {
+            $leaveRequest->user->notify(new LeaveRejectedBellNotification($leaveRequest, 'MS'));
+        }
+
+        $mailSent = $this->sendLeaveStatusEmail($leaveRequest, 'Rejected', 'MS');
+
+        if (! $mailSent) {
+            return back()->with('warning', 'Leave request rejected by MS. Notification email could not be delivered.');
+        }
+
+        return back()->with('success', 'Leave request rejected by MS. Notification email sent.');
     }
 
     public function profile()
@@ -1094,39 +1452,268 @@ class AuthController extends Controller
         ]);
     }
 
-    public function attendanceHistory(Request $request)
+    public function markNotificationAsRead(string $notification)
     {
-        $validated = $request->validate([
-            'from_date' => 'nullable|date',
-            'to_date' => 'nullable|date|after_or_equal:from_date',
-        ]);
-
         $user = Auth::user();
 
+        if (!$user) {
+            abort(403, 'Authentication required.');
+        }
+
+        $notificationKey = Schema::hasColumn('notifications', 'notifications_id')
+            ? 'notifications_id'
+            : 'id';
+
+        $updates = [
+            'read_at' => now(),
+        ];
+
+        if (Schema::hasColumn('notifications', 'updated_at')) {
+            $updates['updated_at'] = now();
+        }
+
+        DB::table('notifications')
+            ->where($notificationKey, $notification)
+            ->where('notifiable_type', User::class)
+            ->where('notifiable_id', $user->getAuthIdentifier())
+            ->whereNull('read_at')
+            ->update($updates);
+
+        return back();
+    }
+
+    public function attendanceHistory(Request $request)
+    {
+        $user = Auth::user();
+        $isHod = $this->isHod($user);
+        $isMs = $this->isMs($user);
+        $leaveApproveCount = 0;
+
+        if ($isHod) {
+            $leaveApproveCount = LeaveRequest::query()
+                ->where('submit_to', 'HoD')
+                ->where('hod_status', 'Pending')
+                ->whereHas('user', function ($query) use ($user) {
+                    $query->where('department', $user->department)
+                        ->where('users_id', '!=', $user->id);
+                })
+                ->count();
+        }
+        
+        // Get current month for summary
+        $currentMonth = Carbon::now()->startOfMonth();
+        $currentMonthEnd = Carbon::now()->endOfMonth();
+
+        // Get attendance summary for current month
+        $currentMonthAttendances = Attendance::where('user_id', $user->id)
+            ->whereBetween('date', [$currentMonth, $currentMonthEnd])
+            ->get();
+
+        // Calculate summary stats
+        // Present = both clock_in and clock_out recorded
+        $presentDays = $currentMonthAttendances->filter(function($att) {
+            return $att->clock_in && $att->clock_out;
+        })->count();
+        
+        // Late = clock_in recorded and remarks contain "Late"
+        $lateDays = $currentMonthAttendances->filter(function($att) {
+            return $att->clock_in && stripos($att->remarks ?? '', 'late') !== false;
+        })->count();
+        
+        // Absent = no clock_in and not a leave day
+        $absentDays = $currentMonthAttendances->filter(function($att) {
+            return $att->status !== 'leave' && !$att->clock_in;
+        })->count();
+        
+        // Leave = status is leave
+        $leaveDays = $currentMonthAttendances->where('status', 'leave')->count();
+
+        // Get all attendance records (current month by default, can be expanded for all records)
         $historyQuery = Attendance::where('user_id', $user->id)
+            ->whereBetween('date', [$currentMonth, $currentMonthEnd])
             ->orderByDesc('date');
-
-        if (!empty($validated['from_date'])) {
-            $historyQuery->whereDate('date', '>=', $validated['from_date']);
-        }
-
-        if (!empty($validated['to_date'])) {
-            $historyQuery->whereDate('date', '<=', $validated['to_date']);
-        }
 
         $attendances = $historyQuery->paginate(15)->withQueryString();
 
         return view('attendance_history', [
             'user' => $user,
+            'isHod' => $isHod,
+            'isMs' => $isMs,
+            'leaveApproveCount' => $leaveApproveCount,
             'attendances' => $attendances,
-            'filters' => $validated,
+            'currentMonth' => $currentMonth->format('F Y'),
+            'presentDays' => $presentDays,
+            'lateDays' => $lateDays,
+            'absentDays' => $absentDays,
+            'leaveDays' => $leaveDays,
         ]);
+    }
+
+    public function showTourRecords()
+    {
+        $user = Auth::user();
+        $dzongkhags = [
+            'Bumthang',
+            'Chhukha',
+            'Dagana',
+            'Gasa',
+            'Haa',
+            'Lhuentse',
+            'Mongar',
+            'Paro',
+            'Pemagatshel',
+            'Punakha',
+            'Samdrup Jongkhar',
+            'Samtse',
+            'Sarpang',
+            'Thimphu',
+            'Trashigang',
+            'Trashi Yangtse',
+            'Trongsa',
+            'Tsirang',
+            'Wangdue Phodrang',
+            'Zhemgang',
+        ];
+
+        if ($this->isMs($user)) {
+            abort(403, 'MS users cannot access tour records.');
+        }
+
+        if (!Schema::hasTable('tour')) {
+            return back()->with('error', 'Tour table is not available yet.');
+        }
+
+        $tourRecords = Tour::query()
+            ->where('users_id', $user->id)
+            ->orderByDesc('start_date')
+            ->orderByDesc('tour_id')
+            ->get();
+
+        return view('tour_records', [
+            'user' => $user,
+            'isHod' => $this->isHod($user),
+            'isMs' => $this->isMs($user),
+            'leaveApproveCount' => $this->isHod($user)
+                ? LeaveRequest::query()
+                    ->where('submit_to', 'HoD')
+                    ->where('hod_status', 'Pending')
+                    ->whereHas('user', function ($query) use ($user) {
+                        $query->where('department', $user->department)
+                            ->where('users_id', '!=', $user->id);
+                    })
+                    ->count()
+                : 0,
+            'dzongkhags' => $dzongkhags,
+            'tourRecords' => $tourRecords,
+        ]);
+    }
+
+    public function storeTourRecord(Request $request)
+    {
+        $user = Auth::user();
+        $dzongkhags = [
+            'Bumthang',
+            'Chhukha',
+            'Dagana',
+            'Gasa',
+            'Haa',
+            'Lhuentse',
+            'Mongar',
+            'Paro',
+            'Pemagatshel',
+            'Punakha',
+            'Samdrup Jongkhar',
+            'Samtse',
+            'Sarpang',
+            'Thimphu',
+            'Trashigang',
+            'Trashi Yangtse',
+            'Trongsa',
+            'Tsirang',
+            'Wangdue Phodrang',
+            'Zhemgang',
+        ];
+
+        if ($this->isMs($user)) {
+            abort(403, 'MS users cannot create tour records.');
+        }
+
+        if (!Schema::hasTable('tour')) {
+            return back()->with('error', 'Tour table is not available yet.');
+        }
+
+        $validated = $request->validate([
+            'place' => ['required', Rule::in($dzongkhags)],
+            'start_date' => 'required|date|after_or_equal:today',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'purpose' => 'nullable|string|max:2000',
+            'office_order_pdf' => 'nullable|file|mimes:pdf|max:5120',
+        ]);
+
+        $startDate = Carbon::parse((string) $validated['start_date'])->toDateString();
+        $endDate = Carbon::parse((string) $validated['end_date'])->toDateString();
+
+        $hasOverlappingTour = Tour::query()
+            ->where('users_id', $user->id)
+            ->whereDate('start_date', '<=', $endDate)
+            ->whereDate('end_date', '>=', $startDate)
+            ->exists();
+
+        if ($hasOverlappingTour) {
+            return back()->withInput()->with('error', 'Tour dates overlap with an existing tour record. Please choose a different date range.');
+        }
+
+        $department = Department::query()
+            ->whereRaw('LOWER(name) = ?', [strtolower(trim((string) ($user->department ?? '')))])
+            ->first();
+
+        if (!$department) {
+            return back()->withInput()->with('error', 'Your department is not mapped in department master. Please contact admin.');
+        }
+
+        $pdfPath = null;
+        if ($request->hasFile('office_order_pdf')) {
+            $pdfPath = $request->file('office_order_pdf')->store('tour-office-orders', 'public');
+        }
+
+        Tour::create([
+            'users_id' => $user->id,
+            'department_id' => $department->department_id,
+            'place' => trim((string) $validated['place']),
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'purpose' => trim((string) ($validated['purpose'] ?? '')) ?: null,
+            'office_order_pdf' => $pdfPath,
+        ]);
+
+        return redirect()->route('tour.records')
+            ->with('success', 'Tour record saved successfully.')
+            ->with('tour_popup', [
+                'place' => trim((string) $validated['place']),
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'purpose' => trim((string) ($validated['purpose'] ?? '')) ?: '-',
+            ]);
     }
 
     public function showApplyLeave()
     {
         $user = Auth::user();
         $isHod = $this->isHod($user);
+        $isMs = $this->isMs($user);
+        $leaveApproveCount = 0;
+
+        if ($isHod) {
+            $leaveApproveCount = LeaveRequest::query()
+                ->where('submit_to', 'HoD')
+                ->where('hod_status', 'Pending')
+                ->whereHas('user', function ($query) use ($user) {
+                    $query->where('department', $user->department)
+                        ->where('users_id', '!=', $user->id);
+                })
+                ->count();
+        }
+
         $leaveTypes = LeaveType::query()
             ->where('is_active', true)
             ->orderBy('name')
@@ -1140,6 +1727,8 @@ class AuthController extends Controller
         return view('apply_leave', [
             'user' => $user,
             'isHod' => $isHod,
+            'isMs' => $isMs,
+            'leaveApproveCount' => $leaveApproveCount,
             'leaveTypes' => $leaveTypes,
             'balances' => $balances,
             'leaveHistory' => $leaveHistory,
@@ -1240,7 +1829,7 @@ class AuthController extends Controller
             'ms_status' => 'Pending',
         ]);
 
-        return redirect()->route('leave.create')->with('success', 'Leave request submitted successfully.');
+        return redirect()->route('leave.create')->with('success', 'Leave request submitted to HoD for approval.');
     }
 
     private function getLeaveBalances(int $userId, $leaveTypes): array
@@ -1551,31 +2140,92 @@ class AuthController extends Controller
 
     private function isAdmin($user): bool
     {
-        if (!$user || !Schema::hasTable('admins')) {
+        return Auth::guard('admin')->check();
+    }
+
+    private function issueVerificationCode(User $user): string
+    {
+        $code = (string) random_int(100000, 999999);
+
+        $user->update([
+            'verification_code' => Hash::make($code),
+            'verification_code_expires_at' => Carbon::now()->addMinutes(10),
+        ]);
+
+        return $code;
+    }
+
+    private function sendVerificationCodeEmail(User $user, string $code): void
+    {
+        try {
+            Mail::raw(
+                "Your verification code is: {$code}\n\nThis code expires in 10 minutes.\nIf you did not request this, please ignore this email.",
+                function ($message) use ($user) {
+                    $message
+                        ->to((string) $user->email)
+                        ->subject('Device Verification Code');
+                }
+            );
+        } catch (\Throwable $exception) {
+            Log::error('Verification email failed to send', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $exception->getMessage(),
+            ]);
+
+            if (app()->environment('local')) {
+                session()->flash('verification_code_debug', $code);
+                return;
+            }
+
+            throw $exception;
+        }
+    }
+
+    private function sendLeaveStatusEmail(LeaveRequest $leaveRequest, string $status, string $processedBy): bool
+    {
+        $leaveRequest->loadMissing('user');
+
+        if (! $leaveRequest->user || ! filter_var($leaveRequest->user->email, FILTER_VALIDATE_EMAIL)) {
             return false;
         }
 
-        $identifiers = collect([
-            trim((string) ($user->eid ?? '')),
-            trim((string) ($user->email ?? '')),
-        ])->filter()->unique()->values()->all();
+        $subject = "Leave Request {$status}";
+        $rejectionLine = '';
 
-        if (empty($identifiers)) {
+        if (strcasecmp($status, 'Rejected') === 0) {
+            $rejectionLine = "Rejection reason: " . ($leaveRequest->rejection_reason ?: 'No reason provided.') . "\n";
+        }
+
+        $body = "Hello {$leaveRequest->user->name},\n\n"
+            . "Your leave request from {$leaveRequest->start_date->format('Y-m-d')} to {$leaveRequest->end_date->format('Y-m-d')} "
+            . "has been {$status} by {$processedBy}.\n\n"
+            . "Leave type: {$leaveRequest->leaveType?->name}\n"
+            . "Reason: {$leaveRequest->reason}\n"
+            . $rejectionLine
+            . "\n"
+            . "If you have any questions, please contact your department.\n\n"
+            . "Regards,\nAttendance Management System";
+
+        try {
+            Mail::raw($body, function ($message) use ($leaveRequest, $subject) {
+                $message
+                    ->to((string) $leaveRequest->user->email)
+                    ->subject($subject);
+            });
+
+            return true;
+        } catch (\Throwable $exception) {
+            Log::error('Leave status email failed to send', [
+                'leave_request_id' => $leaveRequest->id,
+                'user_id' => $leaveRequest->user->id,
+                'email' => $leaveRequest->user->email,
+                'status' => $status,
+                'error' => $exception->getMessage(),
+            ]);
+
             return false;
         }
-
-        static $adminCache = [];
-        $cacheKey = implode('|', $identifiers);
-
-        if (array_key_exists($cacheKey, $adminCache)) {
-            return $adminCache[$cacheKey];
-        }
-
-        $adminCache[$cacheKey] = DB::table('admins')
-            ->whereIn('username', $identifiers)
-            ->exists();
-
-        return $adminCache[$cacheKey];
     }
 
     private function normalizeTime(string $time, string $fallback): string
@@ -1659,3 +2309,4 @@ class AuthController extends Controller
         }
     }
 }
+

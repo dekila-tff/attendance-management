@@ -594,8 +594,10 @@
         $managedLeaveTypes = $managedLeaveTypes ?? null;
         $showAddLeaveTypeForm = $showAddLeaveTypeForm ?? request()->boolean('add_leave_type');
         $editingLeaveType = $editingLeaveType ?? null;
+        $managedLeaveRecords = $managedLeaveRecords ?? null;
         $leaveBalanceEmployees = $leaveBalanceEmployees ?? collect();
         $leaveBalanceTypes = $leaveBalanceTypes ?? collect();
+        $bonusIpdEmployees = $bonusIpdEmployees ?? collect();
         $activeSectionData = collect($sections)->firstWhere('key', $activeSection)
             ?? collect($sections)->firstWhere('key', 'roles-permissions');
 
@@ -627,7 +629,7 @@
                         <p class="text-white/70"><strong class="text-white">{{ $user->name }}</strong></p>
                     </div>
                 </div>
-                <form method="POST" action="{{ route('logout') }}">
+                <form method="POST" action="{{ route('admin.logout') }}">
                     @csrf
                     <button type="submit" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
                         Logout
@@ -641,7 +643,7 @@
                         @foreach($sections as $section)
                             @php $isActive = $activeSection === $section['key']; @endphp
                             <a
-                                href="{{ route('dashboard', ['section' => $section['key']]) }}"
+                                href="{{ route('admin.dashboard', ['section' => $section['key']]) }}"
                                 class="admin-menu-link {{ $isActive ? 'active' : '' }}"
                             >
                                 {{ $section['label'] }}
@@ -741,9 +743,9 @@
                                                 </span>
                                             </td>
                                             <td>
-                                                <a class="admin-action-link" href="{{ route('dashboard', ['section' => 'department-hod-management', 'edit_department' => $department->id]) }}">Edit</a>
+                                                <a class="admin-action-link" href="{{ route('admin.dashboard', ['section' => 'department-hod-management', 'edit_department' => $department->id]) }}">Edit</a>
                                                 <span class="admin-inline-separator">|</span>
-                                                <a class="admin-action-link" href="{{ route('dashboard', ['section' => 'department-hod-management', 'assign_department' => $department->id]) }}">Assign HOD</a>
+                                                <a class="admin-action-link" href="{{ route('admin.dashboard', ['section' => 'department-hod-management', 'assign_department' => $department->id]) }}">Assign HOD</a>
                                                 <span class="admin-inline-separator">|</span>
                                                 <form method="POST" action="{{ route('admin.departments.toggleStatus', $department) }}" style="display:inline;">
                                                     @csrf
@@ -783,7 +785,7 @@
 
                                     <div style="grid-column:1 / -1; display:flex; gap:10px;">
                                         <button type="submit" class="admin-content-action">Save Changes</button>
-                                        <a href="{{ route('dashboard', ['section' => 'department-hod-management']) }}" class="admin-content-action" style="background:#475569;">Cancel</a>
+                                        <a href="{{ route('admin.dashboard', ['section' => 'department-hod-management']) }}" class="admin-content-action" style="background:#475569;">Cancel</a>
                                     </div>
                                 </form>
                             </div>
@@ -807,7 +809,7 @@
 
                                     <div style="grid-column:1 / -1; display:flex; gap:10px;">
                                         <button type="submit" class="admin-content-action">Assign HOD</button>
-                                        <a href="{{ route('dashboard', ['section' => 'department-hod-management']) }}" class="admin-content-action" style="background:#475569;">Cancel</a>
+                                        <a href="{{ route('admin.dashboard', ['section' => 'department-hod-management']) }}" class="admin-content-action" style="background:#475569;">Cancel</a>
                                     </div>
                                 </form>
                             </div>
@@ -903,7 +905,7 @@
                         <div class="rp-assign-card">
                             <h3>Assign Permissions</h3>
 
-                            <form method="GET" action="{{ route('dashboard') }}" style="margin-bottom: 10px;">
+                            <form method="GET" action="{{ route('admin.dashboard') }}" style="margin-bottom: 10px;">
                                 <input type="hidden" name="section" value="roles-permissions">
                                 <label class="rp-assign-label" for="assignRoleSelect">Select Role</label>
                                 <select id="assignRoleSelect" class="rp-assign-select" name="assign_role_id" onchange="this.form.submit()">
@@ -1201,7 +1203,7 @@
                         </div>
                     @elseif($activeSection === 'leave-types')
                         <div class="mb-4 flex items-center justify-between">
-                            <a href="{{ route('dashboard', ['section' => 'leave-types', 'add_leave_type' => 1]) }}" class="admin-action-link" style="font-size:1.05rem;">
+                            <a href="{{ route('admin.dashboard', ['section' => 'leave-types', 'add_leave_type' => 1]) }}" class="admin-action-link" style="font-size:1.05rem;">
                                 + Add Leave Type
                             </a>
                         </div>
@@ -1226,7 +1228,7 @@
 
                                     <div style="grid-column:1 / -1; display:flex; gap:10px;">
                                         <button type="submit" class="admin-content-action">Save Leave Type</button>
-                                        <a href="{{ route('dashboard', ['section' => 'leave-types']) }}" class="admin-content-action" style="background:#475569;">Cancel</a>
+                                        <a href="{{ route('admin.dashboard', ['section' => 'leave-types']) }}" class="admin-content-action" style="background:#475569;">Cancel</a>
                                     </div>
                                 </form>
 
@@ -1266,7 +1268,7 @@
                                                 <span class="{{ $leaveType->is_active ? 'admin-status-active' : 'admin-status-inactive' }}">{{ $leaveTypeStatus }}</span>
                                             </td>
                                             <td>
-                                                <a class="admin-action-link" href="{{ route('dashboard', ['section' => 'leave-types', 'edit_leave_type' => $leaveType->id]) }}">Edit</a>
+                                                <a class="admin-action-link" href="{{ route('admin.dashboard', ['section' => 'leave-types', 'edit_leave_type' => $leaveType->id]) }}">Edit</a>
                                                 <span class="admin-inline-separator">|</span>
                                                 <form method="POST" action="{{ route('admin.leaveTypes.toggleStatus', $leaveType) }}" style="display:inline;">
                                                     @csrf
@@ -1309,14 +1311,14 @@
 
                                     <div style="grid-column:1 / -1; display:flex; gap:10px;">
                                         <button type="submit" class="admin-content-action">Save Changes</button>
-                                        <a href="{{ route('dashboard', ['section' => 'leave-types']) }}" class="admin-content-action" style="background:#475569;">Cancel</a>
+                                        <a href="{{ route('admin.dashboard', ['section' => 'leave-types']) }}" class="admin-content-action" style="background:#475569;">Cancel</a>
                                     </div>
                                 </form>
                             </div>
                         @endif
                     @elseif($activeSection === 'user-management')
                         <div class="mb-4 admin-user-toolbar">
-                            <form method="GET" action="{{ route('dashboard') }}" class="admin-user-search">
+                            <form method="GET" action="{{ route('admin.dashboard') }}" class="admin-user-search">
                                 <input type="hidden" name="section" value="user-management">
                                 <input
                                     type="text"
@@ -1328,7 +1330,7 @@
                                 <button type="submit" class="admin-content-action">Search</button>
                             </form>
 
-                            <a href="{{ route('dashboard', ['section' => 'user-management', 'create_user' => 1, 'user_search' => $userFilters['search']]) }}" class="admin-content-action admin-add-user-btn">
+                            <a href="{{ route('admin.dashboard', ['section' => 'user-management', 'create_user' => 1, 'user_search' => $userFilters['search']]) }}" class="admin-content-action admin-add-user-btn">
                                 Add New User
                             </a>
                         </div>
@@ -1365,7 +1367,7 @@
 
                                     <div style="grid-column:1 / -1; display:flex; gap:10px;">
                                         <button type="submit" class="admin-content-action">Create User</button>
-                                        <a href="{{ route('dashboard', ['section' => 'user-management', 'user_search' => $userFilters['search']]) }}" class="admin-content-action" style="background:#475569;">Cancel</a>
+                                        <a href="{{ route('admin.dashboard', ['section' => 'user-management', 'user_search' => $userFilters['search']]) }}" class="admin-content-action" style="background:#475569;">Cancel</a>
                                     </div>
                                 </form>
 
@@ -1423,6 +1425,21 @@
                                                 >
                                                     Edit
                                                 </button>
+                                                <span class="admin-inline-separator">|</span>
+                                                <button
+                                                    type="button"
+                                                    class="admin-action-link"
+                                                    onclick="openPasswordResetModalFromButton(this)"
+                                                    data-name="{{ $managedUser->name }}"
+                                                    data-reset-url="{{ route('admin.users.resetPassword', $managedUser) }}"
+                                                >
+                                                    Reset Password
+                                                </button>
+                                                <span class="admin-inline-separator">|</span>
+                                                <form method="POST" action="{{ route('admin.users.delete', $managedUser) }}" style="display:inline;" onsubmit="return confirm('Delete this user permanently?');">
+                                                    @csrf
+                                                    <button type="submit" class="admin-action-link">Delete</button>
+                                                </form>
                                                 <span class="admin-inline-separator">|</span>
                                                 <form method="POST" action="{{ route('admin.users.toggleStatus', $managedUser) }}" style="display:inline;">
                                                     @csrf
@@ -1498,6 +1515,25 @@
                             </div>
                         </div>
 
+                        <div id="passwordResetModal" class="rp-modal" aria-hidden="true">
+                            <div class="rp-modal-card">
+                                <h4 id="passwordResetModalTitle">Reset Password</h4>
+
+                                <form method="POST" id="passwordResetForm" action="#" class="admin-form-grid">
+                                    @csrf
+                                    <input type="hidden" name="user_search" value="{{ $userFilters['search'] }}">
+
+                                    <input type="password" id="resetPassword" name="password" class="admin-input" placeholder="New password (min 8 chars)" required>
+                                    <input type="password" id="resetPasswordConfirmation" name="password_confirmation" class="admin-input" placeholder="Confirm new password" required>
+
+                                    <div style="grid-column:1 / -1; display:flex; gap:10px;">
+                                        <button type="submit" class="admin-content-action">Update Password</button>
+                                        <button type="button" class="admin-content-action" style="background:#475569;" onclick="closePasswordResetModal()">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
                         <script>
                             function openUserEditModal(payload = {}) {
                                 const modal = document.getElementById('userEditModal');
@@ -1544,11 +1580,47 @@
                                 document.getElementById('userEditModal').classList.remove('open');
                             }
 
+                            function openPasswordResetModal(payload = {}) {
+                                const modal = document.getElementById('passwordResetModal');
+                                const form = document.getElementById('passwordResetForm');
+
+                                if (payload.resetUrl) {
+                                    form.setAttribute('action', payload.resetUrl);
+                                }
+
+                                document.getElementById('passwordResetModalTitle').textContent = payload.name
+                                    ? `Reset Password: ${payload.name}`
+                                    : 'Reset Password';
+                                document.getElementById('resetPassword').value = '';
+                                document.getElementById('resetPasswordConfirmation').value = '';
+                                modal.classList.add('open');
+                            }
+
+                            function openPasswordResetModalFromButton(button) {
+                                openPasswordResetModal({
+                                    name: button.getAttribute('data-name') || '',
+                                    resetUrl: button.getAttribute('data-reset-url') || ''
+                                });
+                            }
+
+                            function closePasswordResetModal() {
+                                document.getElementById('passwordResetModal').classList.remove('open');
+                            }
+
                             const userEditModal = document.getElementById('userEditModal');
                             if (userEditModal) {
                                 userEditModal.addEventListener('click', function (event) {
                                     if (event.target === userEditModal) {
                                         closeUserEditModal();
+                                    }
+                                });
+                            }
+
+                            const passwordResetModal = document.getElementById('passwordResetModal');
+                            if (passwordResetModal) {
+                                passwordResetModal.addEventListener('click', function (event) {
+                                    if (event.target === passwordResetModal) {
+                                        closePasswordResetModal();
                                     }
                                 });
                             }
@@ -1570,7 +1642,7 @@
                             }
                         </script>
                     @elseif($activeSection === 'attendance-logs')
-                        <form method="GET" action="{{ route('dashboard') }}" class="mb-5 grid grid-cols-1 gap-3 md:grid-cols-4">
+                        <form method="GET" action="{{ route('admin.dashboard') }}" class="mb-5 grid grid-cols-1 gap-3 md:grid-cols-4">
                             <input type="hidden" name="section" value="attendance-logs">
 
                             <input
@@ -1636,6 +1708,96 @@
                                 {{ $adminAttendances->links() }}
                             </div>
                         @endif
+                    @elseif($activeSection === 'leave-records')
+                        <div class="overflow-x-auto rounded-lg">
+                            <table class="min-w-full text-left text-sm text-white/90">
+                                <thead class="bg-white/10">
+                                    <tr>
+                                        <th class="px-4 py-3 font-semibold">Approved On</th>
+                                        <th class="px-4 py-3 font-semibold">Employee</th>
+                                        <th class="px-4 py-3 font-semibold">Department</th>
+                                        <th class="px-4 py-3 font-semibold">Leave Type</th>
+                                        <th class="px-4 py-3 font-semibold">From</th>
+                                        <th class="px-4 py-3 font-semibold">To</th>
+                                        <th class="px-4 py-3 font-semibold">Days</th>
+                                        <th class="px-4 py-3 font-semibold">Reason</th>
+                                        <th class="px-4 py-3 font-semibold">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse(($managedLeaveRecords ?? collect()) as $leave)
+                                        <tr class="border-t border-white/10 align-top">
+                                            <td class="px-4 py-3">{{ $leave->updated_at ? \Carbon\Carbon::parse($leave->updated_at)->format('M d, Y h:i A') : '-' }}</td>
+                                            <td class="px-4 py-3">
+                                                <div class="font-semibold text-white">{{ $leave->user?->name ?? 'Unknown' }}</div>
+                                                <div class="text-xs text-white/65">{{ $leave->user?->eid ?? '-' }}</div>
+                                            </td>
+                                            <td class="px-4 py-3">{{ $leave->user?->department ?? '-' }}</td>
+                                            <td class="px-4 py-3">{{ $leave->leaveType?->name ?? $leave->leave_type ?? '-' }}</td>
+                                            <td class="px-4 py-3">{{ $leave->start_date ? \Carbon\Carbon::parse($leave->start_date)->format('M d, Y') : '-' }}</td>
+                                            <td class="px-4 py-3">{{ $leave->end_date ? \Carbon\Carbon::parse($leave->end_date)->format('M d, Y') : '-' }}</td>
+                                            <td class="px-4 py-3">{{ number_format((float) $leave->total_days, 2) }}</td>
+                                            <td class="px-4 py-3 max-w-sm break-words">{{ $leave->reason ?: '-' }}</td>
+                                            <td class="px-4 py-3">
+                                                <span class="inline-flex rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-200">
+                                                    Approved by MS
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="9" class="px-4 py-8 text-center text-white/65">No leave requests approved by MS yet.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+
+                        @if($managedLeaveRecords)
+                            <div class="mt-4">
+                                {{ $managedLeaveRecords->links() }}
+                            </div>
+                        @endif
+                    @elseif($activeSection === 'reports')
+                        <div class="flex flex-wrap items-center" style="column-gap: 18px; row-gap: 10px;">
+                            <a href="{{ route('admin.dashboard', ['section' => 'reports', 'report' => 'bonus']) }}" class="admin-content-action">
+                                Bonus
+                            </a>
+                            <a href="{{ route('admin.dashboard', ['section' => 'reports', 'report' => 'm-attendance']) }}" class="admin-content-action">
+                                M-Attendance %
+                            </a>
+                        </div>
+
+                        @if(request('report') === 'bonus')
+                            <div class="mt-4 admin-table-wrap">
+                                <table class="admin-table" style="min-width: 640px;">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Employee</th>
+                                            <th>EID</th>
+                                            <th>Department</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse($bonusIpdEmployees as $employee)
+                                            <tr>
+                                                <td>{{ $loop->iteration }}</td>
+                                                <td>{{ $employee->name }}</td>
+                                                <td>{{ $employee->eid ?: '-' }}</td>
+                                                <td>{{ $employee->department ?: '-' }}</td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="4" class="text-center">No IPD employees found with night-shift clock-in records.</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        @elseif(request('report') === 'm-attendance')
+                            <p class="mt-4 text-white/80">M-Attendance % report module is ready to be connected.</p>
+                        @endif
                     @elseif($activeSectionRoute)
                         <a href="{{ $activeSectionRoute }}" class="admin-content-action">
                             {{ $activeSectionRouteLabel }}
@@ -1649,3 +1811,4 @@
         </div>
     </div>
 @endsection
+

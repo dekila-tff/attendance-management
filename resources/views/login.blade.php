@@ -75,6 +75,11 @@
                     <button type="submit" class="inline-block bg-gradient-to-b from-blue-500 to-blue-800 text-white font-bold py-3 px-6 rounded-xl shadow-lg">Log in</button>
                 </div>
 
+                <p class="text-sm text-white/80">
+                    No account yet?
+                    <a href="{{ route('register') }}" class="underline">Register here</a>
+                </p>
+
             </form>
 
             <div class="mt-6 flex items-center justify-between text-sm leading-none text-white/70">
