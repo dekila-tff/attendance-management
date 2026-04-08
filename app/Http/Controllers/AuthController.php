@@ -12,6 +12,7 @@ use App\Models\UserLeaveBalance;
 use App\Models\Attendance;
 use App\Models\DepartmentShift;
 use App\Models\LeaveRequest;
+use App\Models\AdhocRequest;
 use App\Models\LeaveType;
 use App\Models\Tour;
 use Carbon\Carbon;
@@ -21,7 +22,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
-use App\Notifications\LeaveRejectedBellNotification;
+use App\Notifications\LeaveStatusBellNotification;
 
 class AuthController extends Controller
 {
@@ -32,11 +33,14 @@ class AuthController extends Controller
 
     public function showRegister()
     {
-        $selfRegisterRoles = Role::query()
-            ->whereIn('id', [1, 2, 3])
+        $selfRegisterRoles = DB::table('roles')
+            ->whereIn('role_id', [1, 2, 3])
             ->whereRaw("LOWER(COALESCE(status, 'active')) = ?", ['active'])
-            ->orderBy('id')
-            ->get(['id', 'name']);
+            ->orderBy('role_id')
+            ->get([
+                DB::raw('role_id as id'),
+                'name',
+            ]);
 
         if ($selfRegisterRoles->isEmpty()) {
             $selfRegisterRoles = collect([
@@ -90,6 +94,16 @@ class AuthController extends Controller
             'username' => 'required',
             'password' => 'required',
         ]);
+
+        $user = User::query()
+            ->where('eid', trim((string) $request->username))
+            ->first();
+
+        if ($user && strtolower(trim((string) ($user->status ?? 'active'))) !== 'active') {
+            return back()->withErrors([
+                'username' => 'Your account is deactivated. Please contact admin.',
+            ])->withInput($request->only('username'));
+        }
 
         // Authenticate employee users by EID via the username input.
         $credentials = [
@@ -285,6 +299,7 @@ class AuthController extends Controller
             $showAddLeaveTypeForm = (bool) $request->boolean('add_leave_type');
             $editingLeaveType = null;
             $managedLeaveRecords = null;
+            $managedStaffTours = null;
             $leaveBalanceEmployees = collect();
             $leaveBalanceTypes = collect();
             $leaveBalanceRows = collect();
@@ -292,9 +307,9 @@ class AuthController extends Controller
             $bonusIpdEmployees = collect();
 
             if ($activeSection === 'roles-permissions') {
-                $managedRoles = Role::query()->orderByDesc('roles_id')->get();
-                $managedPermissions = Permission::query()->orderByDesc('permissions_id')->get();
-                $userColumns = ['id', 'name', 'eid', 'role_id'];
+                $managedRoles = Role::query()->orderByDesc('role_id')->get();
+                $managedPermissions = Permission::query()->orderByDesc('permission_id')->get();
+                $userColumns = ['user_id', 'name', 'eid', 'role_id'];
                 if (Schema::hasColumn('users', 'email')) {
                     $userColumns[] = 'email';
                 }
@@ -303,7 +318,7 @@ class AuthController extends Controller
                     ->get($userColumns);
 
                 if ($selectedRoleIdForPermissions > 0) {
-                    $selectedRole = Role::query()->with('permissions:permissions_id,name')->find($selectedRoleIdForPermissions);
+                    $selectedRole = Role::query()->with('permissions:permission_id,name')->find($selectedRoleIdForPermissions);
                     $assignedPermissionIds = $selectedRole
                         ? $selectedRole->permissions->pluck('id')->map(fn ($id) => (int) $id)->all()
                         : [];
@@ -314,7 +329,7 @@ class AuthController extends Controller
                 $this->syncDepartmentsFromUsers();
 
                 $managedDepartments = Department::query()
-                    ->with('hod:id,name')
+                    ->with('hod:user_id,name')
                     ->orderBy('name')
                     ->paginate(15, ['*'], 'departments_page')
                     ->withQueryString();
@@ -323,7 +338,7 @@ class AuthController extends Controller
                     ->where('role_id', 3)
                     ->whereRaw("LOWER(COALESCE(status, 'active')) = ?", ['active'])
                     ->orderBy('name')
-                    ->get(['id', 'name', 'eid', 'department']);
+                    ->get(['user_id', 'name', 'eid', 'department']);
 
                 $editDepartmentId = (int) $request->query('edit_department', 0);
                 if ($editDepartmentId > 0) {
@@ -339,7 +354,7 @@ class AuthController extends Controller
             if ($activeSection === 'user-management') {
                 $usersQuery = User::query()
                     ->with('role')
-                    ->orderBy('id');
+                    ->orderBy('user_id');
 
                 if ($userFilters['search'] !== '') {
                     $term = $userFilters['search'];
@@ -367,7 +382,7 @@ class AuthController extends Controller
 
             if ($activeSection === 'leave-types') {
                 $managedLeaveTypes = LeaveType::query()
-                    ->orderBy('id')
+                    ->orderBy('leave_type_id')
                     ->paginate(20, ['*'], 'leave_types_page')
                     ->withQueryString();
 
@@ -381,14 +396,14 @@ class AuthController extends Controller
                 $leaveBalanceEmployees = User::query()
                     ->whereRaw("LOWER(COALESCE(status, 'active')) = ?", ['active'])
                     ->orderBy('name')
-                    ->get(['id', 'name', 'eid', 'department']);
+                    ->get(['user_id', 'name', 'eid', 'department']);
 
                 $leaveBalanceTypes = LeaveType::query()
                     ->where('is_active', true)
                     ->orderBy('name')
-                    ->get(['id', 'name', 'code', 'entitlement_days', 'is_active']);
+                    ->get(['leave_type_id', 'name', 'code', 'entitlement_days', 'is_active']);
 
-                $employeeIds = $leaveBalanceEmployees->pluck('id')->all();
+                $employeeIds = $leaveBalanceEmployees->pluck('user_id')->all();
                 $leaveTypeIds = $leaveBalanceTypes->pluck('id')->all();
 
                 if (!empty($employeeIds) && !empty($leaveTypeIds)) {
@@ -411,8 +426,21 @@ class AuthController extends Controller
                     $rows = [];
 
                     foreach ($leaveBalanceEmployees as $employee) {
+                        $summaryRow = [
+                            'employee_name' => (string) $employee->name,
+                            'annual_leave' => 0.0,
+                            'bereavement_leave' => 0.0,
+                            'maternity_leave' => 0.0,
+                            'medical_leave' => 0.0,
+                            'paternity_leave' => 0.0,
+                            'max_per_year' => 0.0,
+                            'used_days' => 0.0,
+                            'remaining_days' => 0.0,
+                            'year' => $leaveBalanceYear,
+                        ];
+
                         foreach ($leaveBalanceTypes as $leaveType) {
-                            $pairKey = (int) $employee->id . ':' . (int) $leaveType->id;
+                            $pairKey = (int) $employee->user_id . ':' . (int) $leaveType->id;
                             $customBalance = $customBalances->get($pairKey);
                             $maxPerYear = $customBalance
                                 ? (float) $customBalance->max_per_year
@@ -421,26 +449,36 @@ class AuthController extends Controller
                             $used = (float) optional($usedDaysByPair->get($pairKey))->used_days;
                             $remaining = max(0, $maxPerYear + $adjustment - $used);
 
-                            $rows[] = [
-                                'employee_name' => (string) $employee->name,
-                                'leave_type_name' => (string) $leaveType->name,
-                                'max_per_year' => $maxPerYear,
-                                'used_days' => $used,
-                                'remaining_days' => $remaining,
-                                'year' => $leaveBalanceYear,
-                            ];
+                            $typeName = strtolower((string) $leaveType->name);
+                            if (str_contains($typeName, 'annual')) {
+                                $summaryRow['annual_leave'] = $remaining;
+                            } elseif (str_contains($typeName, 'bereav')) {
+                                $summaryRow['bereavement_leave'] = $remaining;
+                            } elseif (str_contains($typeName, 'maternity')) {
+                                $summaryRow['maternity_leave'] = $remaining;
+                            } elseif (str_contains($typeName, 'medical')) {
+                                $summaryRow['medical_leave'] = $remaining;
+                            } elseif (str_contains($typeName, 'paternity')) {
+                                $summaryRow['paternity_leave'] = $remaining;
+                            }
+
+                            $summaryRow['max_per_year'] += $maxPerYear;
+                            $summaryRow['used_days'] += $used;
+                            $summaryRow['remaining_days'] += $remaining;
                         }
+
+                        $rows[] = $summaryRow;
                     }
 
                     $leaveBalanceRows = collect($rows)
-                        ->sortBy(fn ($row) => strtolower($row['employee_name'] . '|' . $row['leave_type_name']))
+                        ->sortBy(fn ($row) => strtolower($row['employee_name']))
                         ->values();
                 }
             }
 
             if ($activeSection === 'attendance-logs') {
                 $attendanceQuery = Attendance::query()
-                    ->with(['user:users_id,name,eid,department'])
+                    ->with(['user:user_id,name,eid,department,designation'])
                     ->orderByDesc('date')
                     ->orderByDesc('clock_in');
 
@@ -463,17 +501,83 @@ class AuthController extends Controller
                 }
 
                 $adminAttendances = $attendanceQuery->paginate(20)->withQueryString();
+
+                $attendanceRows = $adminAttendances->getCollection();
+                $attendanceUserIds = $attendanceRows->pluck('user_id')->filter()->unique()->values();
+                $attendanceDates = $attendanceRows
+                    ->pluck('date')
+                    ->filter()
+                    ->map(fn ($value) => Carbon::parse($value)->toDateString())
+                    ->values();
+
+                $adhocLookup = collect();
+                if ($attendanceUserIds->isNotEmpty() && $attendanceDates->isNotEmpty()) {
+                    $minDate = $attendanceDates->min();
+                    $maxDate = $attendanceDates->max();
+
+                    $adhocLookup = AdhocRequest::query()
+                        ->whereIn('user_id', $attendanceUserIds)
+                        ->whereDate('date', '>=', $minDate)
+                        ->whereDate('date', '<=', $maxDate)
+                        ->get(['user_id', 'date'])
+                        ->mapWithKeys(function ($adhoc) {
+                            $key = (int) $adhoc->user_id . '|' . Carbon::parse($adhoc->date)->toDateString();
+                            return [$key => true];
+                        });
+                }
+
+                $checkInCutoff = Carbon::createFromTime(9, 15, 0);
+
+                $adminAttendances->setCollection(
+                    $attendanceRows->map(function ($attendance) use ($adhocLookup, $checkInCutoff) {
+                        $attendanceDate = $attendance->date
+                            ? Carbon::parse($attendance->date)->toDateString()
+                            : null;
+
+                        $checkInStatus = 'Missing';
+                        if ($attendance->clock_in) {
+                            $checkInTime = Carbon::parse($attendance->clock_in);
+                            $checkInStatus = $checkInTime->lte($checkInCutoff) ? 'On Time' : 'Late Check-In';
+                        }
+
+                        $checkoutCompleted = !empty($attendance->clock_in) && !empty($attendance->clock_out);
+                        $checkoutStatus = $checkoutCompleted ? 'Completed' : 'Missing';
+
+                        $remarks = '-';
+                        if (!$checkoutCompleted && $attendanceDate) {
+                            $adhocKey = (int) $attendance->user_id . '|' . $attendanceDate;
+                            if (!$adhocLookup->has($adhocKey)) {
+                                $remarks = 'Bunking';
+                            }
+                        }
+
+                        $attendance->checkin_status = $checkInStatus;
+                        $attendance->checkout_status = $checkoutStatus;
+                        $attendance->computed_remarks = $remarks;
+
+                        return $attendance;
+                    })
+                );
             }
 
             if ($activeSection === 'leave-records') {
                 $managedLeaveRecords = LeaveRequest::query()
-                    ->with(['user:users_id,name,eid,department', 'leaveType:id,name'])
+                    ->with(['user:user_id,name,eid,department', 'leaveType:leave_type_id,name'])
                     ->where('ms_status', 'Approved')
                     ->orderByDesc('updated_at')
-                    ->orderByDesc('id')
+                    ->orderByDesc('leave_request_id')
                     ->paginate(20, ['*'], 'leave_records_page')
                     ->withQueryString();
             }
+
+                    if ($activeSection === 'staff-on-tour') {
+                    $managedStaffTours = Tour::query()
+                        ->with(['user:user_id,name,eid,designation,department'])
+                        ->orderByDesc('start_date')
+                        ->orderByDesc('tour_id')
+                        ->paginate(20, ['*'], 'staff_tour_page')
+                        ->withQueryString();
+                    }
 
             if ($activeSection === 'reports' && (string) $request->query('report') === 'bonus') {
                 $bonusIpdEmployees = User::query()
@@ -486,7 +590,7 @@ class AuthController extends Controller
                             });
                     })
                     ->orderBy('name')
-                    ->get(['id', 'name', 'eid', 'department']);
+                    ->get(['user_id', 'name', 'eid', 'department']);
             }
 
             return view('dashboard_admin', [
@@ -513,6 +617,7 @@ class AuthController extends Controller
                 'showAddLeaveTypeForm' => $showAddLeaveTypeForm,
                 'editingLeaveType' => $editingLeaveType,
                 'managedLeaveRecords' => $managedLeaveRecords,
+                'managedStaffTours' => $managedStaffTours,
                 'leaveBalanceEmployees' => $leaveBalanceEmployees,
                 'leaveBalanceTypes' => $leaveBalanceTypes,
                 'leaveBalanceRows' => $leaveBalanceRows,
@@ -552,7 +657,7 @@ class AuthController extends Controller
         $tourRecords = collect();
 
         if (!$isMs && Schema::hasTable('tour')) {
-            $currentUserId = $user->users_id ?? $user->id ?? null;
+            $currentUserId = $user->user_id ?? $user->id ?? $user->users_id ?? null;
 
             if ($currentUserId !== null) {
                 $tourRecords = Tour::query()
@@ -571,7 +676,7 @@ class AuthController extends Controller
                 ->where('hod_status', 'Pending')
                 ->whereHas('user', function ($query) use ($user) {
                     $query->where('department', $user->department)
-                        ->where('users_id', '!=', $user->id);
+                        ->where('user_id', '!=', $user->id);
                 })
                 ->count();
         }
@@ -603,7 +708,7 @@ class AuthController extends Controller
                 'nullable',
                 'string',
                 'max:255',
-                Rule::unique('users', 'eid')->ignore($user->id, 'users_id'),
+                Rule::unique('users', 'eid')->ignore($user->id, 'user_id'),
             ],
             'designation' => 'nullable|string|max:255',
             'department' => 'nullable|string|max:255',
@@ -690,29 +795,25 @@ class AuthController extends Controller
             ->with('success', 'User status updated to ' . $newStatus . '.');
     }
 
-    public function adminDeleteUser(User $user)
+    public function adminDeactivateUser(User $user)
     {
         $admin = Auth::user();
 
         if (!$this->isAdmin($admin)) {
-            abort(403, 'Only admin can delete users.');
+            abort(403, 'Only admin can deactivate users.');
         }
 
         if ($user->id === $admin->id) {
             return redirect()
                 ->route('admin.dashboard', ['section' => 'user-management'])
-                ->with('error', 'You cannot delete your own account.');
+                ->with('error', 'You cannot deactivate your own account.');
         }
 
-        $user->delete();
-
-        if (DB::table('users')->count() === 0) {
-            DB::statement('ALTER TABLE users AUTO_INCREMENT = 1');
-        }
+        $user->update(['status' => 'Inactive']);
 
         return redirect()
             ->route('admin.dashboard', ['section' => 'user-management'])
-            ->with('success', 'User deleted successfully.');
+            ->with('success', 'User deactivated successfully.');
     }
 
     public function adminResetUserPassword(Request $request, User $user)
@@ -798,7 +899,7 @@ class AuthController extends Controller
         }
 
         $validated = $request->validate([
-            'hod_user_id' => ['required', 'integer', Rule::exists('users', 'id')],
+            'hod_user_id' => ['required', 'integer', Rule::exists('users', 'user_id')],
         ]);
 
         $hodUser = User::findOrFail((int) $validated['hod_user_id']);
@@ -937,9 +1038,9 @@ class AuthController extends Controller
         }
 
         $validated = $request->validate([
-            'role_id' => ['required', 'integer', Rule::exists('roles', 'id')],
+            'role_id' => ['required', 'integer', Rule::exists('roles', 'role_id')],
             'permission_ids' => ['nullable', 'array'],
-            'permission_ids.*' => ['integer', Rule::exists('permissions', 'id')],
+            'permission_ids.*' => ['integer', Rule::exists('permissions', 'permission_id')],
         ]);
 
         $role = Role::findOrFail((int) $validated['role_id']);
@@ -964,7 +1065,7 @@ class AuthController extends Controller
         }
 
         $validated = $request->validate([
-            'user_id' => ['required', 'integer', Rule::exists('users', 'id')],
+            'user_id' => ['required', 'integer', Rule::exists('users', 'user_id')],
         ]);
 
         $selectedUser = User::findOrFail((int) $validated['user_id']);
@@ -1060,8 +1161,8 @@ class AuthController extends Controller
         }
 
         $validated = $request->validate([
-            'user_id' => ['required', 'integer', Rule::exists('users', 'id')],
-            'leave_type_id' => ['required', 'integer', Rule::exists('leave_types', 'id')],
+            'user_id' => ['required', 'integer', Rule::exists('users', 'user_id')],
+            'leave_type_id' => ['required', 'integer', Rule::exists('leave_types', 'leave_type_id')],
             'max_per_year' => 'required|numeric|min:0|max:365',
         ]);
 
@@ -1089,29 +1190,34 @@ class AuthController extends Controller
         }
 
         $validated = $request->validate([
-            'user_id' => ['required', 'integer', Rule::exists('users', 'id')],
-            'leave_type_id' => ['required', 'integer', Rule::exists('leave_types', 'id')],
+            'leave_type_id' => ['required', 'integer', Rule::exists('leave_types', 'leave_type_id')],
             'adjustment' => 'required|numeric|min:-365|max:365',
         ]);
 
-        $balance = UserLeaveBalance::firstOrCreate(
-            [
-                'user_id' => (int) $validated['user_id'],
-                'leave_type_id' => (int) $validated['leave_type_id'],
-            ],
-            [
-                'max_per_year' => 0,
-                'adjustment' => 0,
-            ]
-        );
+        $employeeIds = User::query()
+            ->whereRaw("LOWER(COALESCE(status, 'active')) = ?", ['active'])
+            ->pluck('user_id');
 
-        $balance->update([
-            'adjustment' => (float) $balance->adjustment + (float) $validated['adjustment'],
-        ]);
+        foreach ($employeeIds as $employeeId) {
+            $balance = UserLeaveBalance::firstOrCreate(
+                [
+                    'user_id' => (int) $employeeId,
+                    'leave_type_id' => (int) $validated['leave_type_id'],
+                ],
+                [
+                    'max_per_year' => 0,
+                    'adjustment' => 0,
+                ]
+            );
+
+            $balance->update([
+                'adjustment' => (float) $balance->adjustment + (float) $validated['adjustment'],
+            ]);
+        }
 
         return redirect()
             ->route('admin.dashboard', ['section' => 'leave-balance'])
-            ->with('success', 'Leave balance adjusted successfully.');
+            ->with('success', 'Leave balance adjusted for all active employees successfully.');
     }
 
     public function adminResetLeaveBalancesYearly()
@@ -1145,7 +1251,7 @@ class AuthController extends Controller
             ->with(['user', 'leaveType'])
             ->whereHas('user', function ($query) use ($user) {
                 $query->where('department', $user->department)
-                    ->where('users_id', '!=', $user->id);
+                    ->where('user_id', '!=', $user->id);
             })
             ->orderByDesc('created_at')
             ->paginate(15)
@@ -1156,7 +1262,7 @@ class AuthController extends Controller
             ->where('hod_status', 'Pending')
             ->whereHas('user', function ($query) use ($user) {
                 $query->where('department', $user->department)
-                    ->where('users_id', '!=', $user->id);
+                    ->where('user_id', '!=', $user->id);
             })
             ->count();
 
@@ -1175,25 +1281,89 @@ class AuthController extends Controller
         $isHod = $this->isHod($user);
         $isMs = $this->isMs($user);
 
-        if (!$isHod) {
-            abort(403, 'Only HoD can view staff list.');
+        if (!$isHod && !$isMs) {
+            abort(403, 'Only HoD or MS can view staff list.');
         }
 
-        $leaveApproveCount = LeaveRequest::query()
-            ->where('submit_to', 'HoD')
-            ->where('hod_status', 'Pending')
-            ->whereHas('user', function ($query) use ($user) {
-                $query->where('department', $user->department)
-                    ->where('users_id', '!=', $user->id);
-            })
-            ->count();
+        $leaveApproveCount = $isHod
+            ? LeaveRequest::query()
+                ->where('submit_to', 'HoD')
+                ->where('hod_status', 'Pending')
+                ->whereHas('user', function ($query) use ($user) {
+                    $query->where('department', $user->department)
+                        ->where('user_id', '!=', $user->id);
+                })
+                ->count()
+            : 0;
 
-        $staffMembers = User::query()
-            ->where('department', $user->department)
-            ->where('users_id', '!=', $user->id)
+        $staffMembersQuery = User::query();
+
+        if ($isHod) {
+            $staffMembersQuery->where('department', $user->department)
+                ->where('user_id', '!=', $user->id);
+        } elseif ($isMs) {
+            $staffMembersQuery->where('user_id', '!=', $user->id);
+        }
+
+        $staffMembers = $staffMembersQuery
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString();
+
+        $today = Carbon::today()->toDateString();
+        $staffUserIds = $staffMembers->getCollection()->pluck('user_id')->filter()->values();
+
+        $activeLeaves = LeaveRequest::query()
+            ->whereIn('user_id', $staffUserIds)
+            ->where('ms_status', 'Approved')
+            ->whereDate('start_date', '<=', $today)
+            ->whereDate('end_date', '>=', $today)
+            ->orderByDesc('start_date')
+            ->get(['user_id', 'start_date', 'end_date', 'total_days'])
+            ->keyBy('user_id');
+
+        $activeTours = Tour::query()
+            ->whereIn('users_id', $staffUserIds)
+            ->whereDate('start_date', '<=', $today)
+            ->whereDate('end_date', '>=', $today)
+            ->orderByDesc('start_date')
+            ->get(['users_id', 'start_date', 'end_date'])
+            ->keyBy('users_id');
+
+        $staffMembers->setCollection(
+            $staffMembers->getCollection()->map(function ($staff) use ($activeLeaves, $activeTours) {
+                $dutyStatus = 'On Duty';
+                $remarks = '-';
+
+                $activeLeave = $activeLeaves->get($staff->user_id);
+                if ($activeLeave) {
+                    $dutyStatus = 'On Leave';
+                    $remarks = sprintf(
+                        '%s day(s) (%s to %s)',
+                        rtrim(rtrim(number_format((float) $activeLeave->total_days, 1, '.', ''), '0'), '.'),
+                        Carbon::parse($activeLeave->start_date)->format('d M Y'),
+                        Carbon::parse($activeLeave->end_date)->format('d M Y')
+                    );
+                } else {
+                    $activeTour = $activeTours->get($staff->user_id);
+                    if ($activeTour) {
+                        $dutyStatus = 'On Tour';
+                    $tourDays = Carbon::parse($activeTour->start_date)->diffInDays(Carbon::parse($activeTour->end_date)) + 1;
+                        $remarks = sprintf(
+                        '%d day(s) (%s to %s)',
+                        $tourDays,
+                        Carbon::parse($activeTour->start_date)->format('d M Y'),
+                        Carbon::parse($activeTour->end_date)->format('d M Y')
+                    );
+                }
+                }
+
+                $staff->duty_status = $dutyStatus;
+                $staff->remarks = $remarks;
+
+                return $staff;
+            })
+        );
 
         return view('hod_staff_list', [
             'user' => $user,
@@ -1201,7 +1371,73 @@ class AuthController extends Controller
             'isMs' => $isMs,
             'leaveApproveCount' => $leaveApproveCount,
             'staffMembers' => $staffMembers,
+            'staffScopeLabel' => ($isMs && !$isHod) ? 'All Departments' : ($user->department ?? 'N/A'),
         ]);
+    }
+
+    public function showAdhocRequests()
+    {
+        $user = Auth::user();
+        $isHod = $this->isHod($user);
+        $isMs = $this->isMs($user);
+
+        if ($isMs) {
+            abort(403, 'MS users cannot create adhoc requests.');
+        }
+
+        $leaveApproveCount = $isHod
+            ? LeaveRequest::query()
+                ->where('submit_to', 'HoD')
+                ->where('hod_status', 'Pending')
+                ->whereHas('user', function ($query) use ($user) {
+                    $query->where('department', $user->department)
+                        ->where('user_id', '!=', $user->id);
+                })
+                ->count()
+            : 0;
+
+        $adhocRequests = AdhocRequest::query()
+            ->where('user_id', $user->id)
+            ->orderByDesc('date')
+            ->orderByDesc('updated_at')
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('adhoc_requests', [
+            'user' => $user,
+            'isHod' => $isHod,
+            'isMs' => $isMs,
+            'leaveApproveCount' => $leaveApproveCount,
+            'adhocRequests' => $adhocRequests,
+        ]);
+    }
+
+    public function storeAdhocRequest(Request $request)
+    {
+        $user = Auth::user();
+
+        if ($this->isMs($user)) {
+            abort(403, 'MS users cannot create adhoc requests.');
+        }
+
+        $validated = $request->validate([
+            'date' => ['required', 'date'],
+            'purpose' => ['required', Rule::in(['meeting', 'emergency'])],
+            'remark' => ['required', 'string', 'max:1000'],
+        ]);
+
+        AdhocRequest::create([
+            'user_id' => $user->id,
+            'name' => (string) $user->name,
+            'date' => Carbon::parse((string) $validated['date'])->toDateString(),
+            'purpose' => (string) $validated['purpose'],
+            'remark' => trim((string) $validated['remark']),
+            'updated_at' => now(),
+        ]);
+
+        return redirect()
+            ->route('adhoc.requests')
+            ->with('success', 'Adhoc request submitted successfully.');
     }
 
     public function hodLeaveRequestAction(Request $request, LeaveRequest $leaveRequest)
@@ -1256,7 +1492,7 @@ class AuthController extends Controller
         ]);
 
         if ($leaveRequest->user) {
-            $leaveRequest->user->notify(new LeaveRejectedBellNotification($leaveRequest, 'HoD'));
+            $leaveRequest->user->notify(new LeaveStatusBellNotification($leaveRequest, 'Rejected', 'HoD', $rejectionReason));
         }
 
         $mailSent = $this->sendLeaveStatusEmail($leaveRequest, 'Rejected', 'HoD');
@@ -1294,7 +1530,7 @@ class AuthController extends Controller
         ];
 
         $attendanceQuery = Attendance::query()
-            ->with(['user:users_id,name,eid,email,department,role_id'])
+            ->with(['user:user_id,name,eid,email,department,role_id'])
             ->whereHas('user', function ($query) {
                 $query->where('role_id', '!=', 1);
             })
@@ -1346,7 +1582,7 @@ class AuthController extends Controller
         ]);
 
         $attendanceQuery = Attendance::query()
-            ->with(['user:users_id,name,eid,email,department,role_id'])
+            ->with(['user:user_id,name,eid,email,department,role_id'])
             ->whereHas('user', function ($query) {
                 $query->where('role_id', '!=', 1);
             })
@@ -1417,6 +1653,10 @@ class AuthController extends Controller
                 'ms_status' => 'Approved',
             ]);
 
+            if ($leaveRequest->user) {
+                $leaveRequest->user->notify(new LeaveStatusBellNotification($leaveRequest, 'Approved', 'MS'));
+            }
+
             $mailSent = $this->sendLeaveStatusEmail($leaveRequest, 'Approved', 'MS');
 
             if (! $mailSent) {
@@ -1431,7 +1671,7 @@ class AuthController extends Controller
         ]);
 
         if ($leaveRequest->user) {
-            $leaveRequest->user->notify(new LeaveRejectedBellNotification($leaveRequest, 'MS'));
+            $leaveRequest->user->notify(new LeaveStatusBellNotification($leaveRequest, 'Rejected', 'MS'));
         }
 
         $mailSent = $this->sendLeaveStatusEmail($leaveRequest, 'Rejected', 'MS');
@@ -1495,7 +1735,7 @@ class AuthController extends Controller
                 ->where('hod_status', 'Pending')
                 ->whereHas('user', function ($query) use ($user) {
                     $query->where('department', $user->department)
-                        ->where('users_id', '!=', $user->id);
+                        ->where('user_id', '!=', $user->id);
                 })
                 ->count();
         }
@@ -1599,7 +1839,7 @@ class AuthController extends Controller
                     ->where('hod_status', 'Pending')
                     ->whereHas('user', function ($query) use ($user) {
                         $query->where('department', $user->department)
-                            ->where('users_id', '!=', $user->id);
+                            ->where('user_id', '!=', $user->id);
                     })
                     ->count()
                 : 0,
@@ -1709,7 +1949,7 @@ class AuthController extends Controller
                 ->where('hod_status', 'Pending')
                 ->whereHas('user', function ($query) use ($user) {
                     $query->where('department', $user->department)
-                        ->where('users_id', '!=', $user->id);
+                        ->where('user_id', '!=', $user->id);
                 })
                 ->count();
         }
@@ -1748,7 +1988,7 @@ class AuthController extends Controller
         $rules = [
             'leave_type' => [
                 'required',
-                Rule::exists('leave_types', 'id')->where(function ($query) {
+                Rule::exists('leave_types', 'leave_type_id')->where(function ($query) {
                     $query->where('is_active', true);
                 }),
             ],
@@ -2288,7 +2528,7 @@ class AuthController extends Controller
         }
 
         $departmentsByNormalizedName = Department::query()
-            ->get(['id', 'name'])
+            ->get(['department_id', 'name'])
             ->keyBy(fn ($department) => strtolower(trim((string) $department->name)));
 
         $hodUsers = User::query()
@@ -2296,15 +2536,15 @@ class AuthController extends Controller
             ->whereRaw("LOWER(COALESCE(status, 'active')) = ?", ['active'])
             ->whereNotNull('department')
             ->where('department', '!=', '')
-            ->orderBy('id')
-            ->get(['id', 'department']);
+            ->orderBy('user_id')
+            ->get(['user_id', 'department']);
 
         foreach ($hodUsers as $hodUser) {
             $normalizedName = strtolower(trim((string) $hodUser->department));
             $department = $departmentsByNormalizedName->get($normalizedName);
 
             if ($department) {
-                Department::where('id', $department->id)->update(['hod_user_id' => $hodUser->id]);
+                Department::where('department_id', $department->department_id)->update(['hod_user_id' => $hodUser->user_id]);
             }
         }
     }

@@ -40,12 +40,15 @@
                             @endif
                         </a>
                         <a href="{{ route('hod.staff.list') }}" class="active">Staff List</a>
+                    @elseif($isMs)
+                        <a href="{{ route('hod.staff.list') }}" class="active">Staff List</a>
                     @else
                         <span class="disabled">Leave Approve</span>
                     @endif
 
                     <a href="{{ route('attendance.history') }}">Attendance</a>
                     <a href="{{ route('leave.create') }}">Leave</a>
+                    <a href="{{ route('adhoc.requests') }}">Adhoc Request</a>
                     <a href="{{ route('tour.records') }}">Tour</a>
                 </nav>
 
@@ -60,18 +63,18 @@
                     <div class="card-backdrop rounded-xl p-8 mb-6">
                         <div class="mb-6">
                             <h1 class="text-3xl font-bold text-white">Staff List</h1>
-                            <p class="text-white/70 mt-1">Department: {{ $user->department ?? 'N/A' }}</p>
+                            <p class="text-white/70 mt-1">Department: {{ $staffScopeLabel ?? ($user->department ?? 'N/A') }}</p>
                         </div>
 
                         <div class="overflow-x-auto">
-                            <table class="w-full min-w-[880px] text-left text-sm text-white/85">
+                            <table class="staff-list-table w-full min-w-[880px] text-sm text-white/85">
                                 <thead class="bg-white/5 text-white/70">
                                     <tr class="border-b border-white/10">
                                         <th class="px-4 py-3 font-medium">Name</th>
                                         <th class="px-4 py-3 font-medium">EID</th>
-                                        <th class="px-4 py-3 font-medium">Email</th>
                                         <th class="px-4 py-3 font-medium">Designation</th>
-                                        <th class="px-4 py-3 font-medium">Status</th>
+                                        <th class="px-4 py-3 font-medium">Duty Status</th>
+                                        <th class="px-4 py-3 font-medium">Remarks</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -79,15 +82,17 @@
                                         <tr class="border-b border-white/10 hover:bg-white/5">
                                             <td class="px-4 py-3 text-white font-medium">{{ $staff->name }}</td>
                                             <td class="px-4 py-3">{{ $staff->eid ?? '-' }}</td>
-                                            <td class="px-4 py-3">{{ $staff->email ?? '-' }}</td>
                                             <td class="px-4 py-3">{{ $staff->designation ?? '-' }}</td>
                                             <td class="px-4 py-3">
-                                                @if(strtolower((string) ($staff->status ?? 'active')) === 'active')
-                                                    <span class="inline-flex rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-200">Active</span>
+                                                @if(($staff->duty_status ?? 'On Duty') === 'On Leave')
+                                                    <span class="inline-flex rounded-full bg-red-500/20 px-2.5 py-1 text-xs font-semibold text-red-200">On Leave</span>
+                                                @elseif(($staff->duty_status ?? 'On Duty') === 'On Tour')
+                                                    <span class="inline-flex rounded-full bg-sky-500/20 px-2.5 py-1 text-xs font-semibold text-sky-200">On Tour</span>
                                                 @else
-                                                    <span class="inline-flex rounded-full bg-red-500/20 px-2.5 py-1 text-xs font-semibold text-red-200">Inactive</span>
+                                                    <span class="inline-flex rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-200">On Duty</span>
                                                 @endif
                                             </td>
+                                            <td class="px-4 py-3 text-white/80">{{ $staff->remarks ?? '-' }}</td>
                                         </tr>
                                     @empty
                                         <tr>
@@ -221,6 +226,22 @@
     .employee-main {
         flex: 1;
         padding: 20px;
+    }
+
+    .staff-list-table {
+        table-layout: fixed;
+    }
+
+    .staff-list-table th,
+    .staff-list-table td {
+        width: 20%;
+        vertical-align: middle;
+        text-align: center;
+    }
+
+    .staff-list-table td {
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
     }
 
     @media (max-width: 900px) {

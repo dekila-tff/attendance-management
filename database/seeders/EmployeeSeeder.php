@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\File;
 
@@ -22,6 +22,7 @@ class EmployeeSeeder extends Seeder
         }
 
         $file = fopen($csvFile, 'r');
+        $now = now();
         
         // Skip header row
         $header = fgetcsv($file);
@@ -53,10 +54,10 @@ class EmployeeSeeder extends Seeder
                 default => 3,
             };
 
-            // Create or update user
-            User::updateOrCreate(
-                ['eid' => $eid],
-                [
+            // Upsert directly to avoid model primary key mismatches.
+            DB::table('users')->upsert(
+                [[
+                    'eid' => $eid,
                     'name' => $name,
                     'email' => $username . '@ntmh.bt', // Create email from username
                     'password' => Hash::make($password),
@@ -64,7 +65,11 @@ class EmployeeSeeder extends Seeder
                     'department' => $department,
                     'role_id' => $roleId,
                     'status' => $status,
-                ]
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]],
+                ['eid'],
+                ['name', 'email', 'password', 'designation', 'department', 'role_id', 'status', 'updated_at']
             );
 
             $count++;

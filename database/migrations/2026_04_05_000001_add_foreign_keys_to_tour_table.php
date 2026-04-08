@@ -33,14 +33,14 @@ return new class extends Migration
         Schema::table('tour', function (Blueprint $table) use ($hasUsersForeign, $hasDepartmentsForeign) {
             if (!$hasUsersForeign) {
                 $table->foreign('users_id', 'tour_users_id_foreign')
-                    ->references('users_id')
+                    ->references('id')
                     ->on('users')
                     ->cascadeOnDelete();
             }
 
             if (!$hasDepartmentsForeign) {
                 $table->foreign('department_id', 'tour_department_id_foreign')
-                    ->references('department_id')
+                    ->references('id')
                     ->on('departments')
                     ->cascadeOnDelete();
             }

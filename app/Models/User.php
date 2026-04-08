@@ -12,7 +12,7 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    protected $primaryKey = 'users_id';
+    protected $primaryKey = 'user_id';
 
     public $incrementing = true;
 
@@ -67,7 +67,7 @@ class User extends Authenticatable
      */
     public function attendances()
     {
-        return $this->hasMany(Attendance::class, 'user_id', 'users_id');
+        return $this->hasMany(Attendance::class, 'user_id', 'user_id');
     }
 
     /**
@@ -75,7 +75,7 @@ class User extends Authenticatable
      */
     public function leaveRequests()
     {
-        return $this->hasMany(LeaveRequest::class, 'user_id', 'users_id');
+        return $this->hasMany(LeaveRequest::class, 'user_id', 'user_id');
     }
 
     /**
@@ -83,7 +83,7 @@ class User extends Authenticatable
      */
     public function role()
     {
-        return $this->belongsTo(Role::class, 'role_id', 'roles_id');
+        return $this->belongsTo(Role::class, 'role_id', 'role_id');
     }
 
     /**
@@ -97,6 +97,11 @@ class User extends Authenticatable
 
     public function getIdAttribute()
     {
-        return $this->attributes['users_id'] ?? null;
+        return $this->attributes['user_id'] ?? null;
+    }
+
+    public function getUsersIdAttribute()
+    {
+        return $this->attributes['user_id'] ?? null;
     }
 }

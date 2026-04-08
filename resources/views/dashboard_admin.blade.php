@@ -153,11 +153,50 @@
         border-color: rgba(239, 68, 68, 0.35);
     }
 
+    .admin-filter-input {
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.08) !important;
+        color: #ffffff;
+        padding: 10px 12px;
+        outline: none;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    .admin-filter-input::placeholder {
+        color: rgba(255, 255, 255, 0.62);
+    }
+
+    .admin-filter-input::-webkit-calendar-picker-indicator {
+        filter: invert(1) brightness(1.25);
+        cursor: pointer;
+    }
+
+    .admin-attendance-filter-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        row-gap: 14px;
+        column-gap: 14px;
+    }
+
+    @media (min-width: 768px) {
+        .admin-attendance-filter-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            column-gap: 16px;
+            row-gap: 16px;
+        }
+    }
+
     .admin-table-wrap {
         overflow-x: auto;
         border-radius: 10px;
         border: 1px solid rgba(255, 255, 255, 0.16);
         background: rgba(255, 255, 255, 0.03);
+    }
+
+    .admin-table-wrap-no-border {
+        border: 0;
     }
 
     .admin-table {
@@ -203,6 +242,203 @@
     .admin-action-link:hover {
         color: #fdba74;
     }
+
+    .admin-actions-dropdown {
+        position: relative;
+        min-width: 0;
+    }
+
+    .admin-actions-dropdown > summary {
+        list-style: none;
+    }
+
+    .admin-actions-dropdown > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .admin-action-dropdown-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 11px;
+        border-radius: 8px;
+        border: 0;
+        background: rgba(255, 255, 255, 0.04);
+        color: #fb923c;
+        font-weight: 700;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .admin-action-dropdown-toggle::after {
+        content: '▾';
+        font-size: 0.8rem;
+        line-height: 1;
+    }
+
+    .admin-actions-menu {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 8px);
+        z-index: 30;
+        width: 190px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: #1f4952;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        padding: 6px;
+        display: grid;
+        gap: 4px;
+    }
+
+    .admin-action-menu-item {
+        width: 100%;
+        display: block;
+        text-align: left;
+        padding: 8px 10px;
+        border-radius: 7px;
+        color: #fb923c;
+        text-decoration: none;
+        background: transparent;
+        border: 0;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .admin-action-menu-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fdba74;
+    }
+
+    .admin-table-users {
+        width: 100%;
+        min-width: 100%;
+        table-layout: fixed;
+    }
+
+    .admin-table-users th,
+    .admin-table-users td {
+        padding: 10px 12px;
+        word-break: break-word;
+    }
+
+    .admin-table-users th:nth-child(1),
+    .admin-table-users td:nth-child(1) {
+        width: 12%;
+        white-space: nowrap;
+    }
+
+    .admin-table-users th:nth-child(2),
+    .admin-table-users td:nth-child(2) {
+        width: 12%;
+    }
+
+    .admin-table-users th:nth-child(3),
+    .admin-table-users td:nth-child(3) {
+        width: 17%;
+    }
+
+    .admin-table-users th:nth-child(4),
+    .admin-table-users td:nth-child(4) {
+        width: 13%;
+    }
+
+    .admin-table-users th:nth-child(5),
+    .admin-table-users td:nth-child(5) {
+        width: 13%;
+    }
+
+    .admin-table-users th:nth-child(6),
+    .admin-table-users td:nth-child(6) {
+        width: 11%;
+        white-space: nowrap;
+    }
+
+    .admin-table-users th:nth-child(7),
+    .admin-table-users td:nth-child(7) {
+        width: 10%;
+        white-space: nowrap;
+    }
+
+    .admin-table-users th:nth-child(8),
+    .admin-table-users td:nth-child(8) {
+        width: 12%;
+        white-space: nowrap;
+    }
+
+    .admin-table-attendance {
+        min-width: 1700px;
+        table-layout: fixed;
+    }
+
+    .admin-table-attendance th,
+    .admin-table-attendance td {
+        vertical-align: middle;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
+
+    .admin-table-attendance th {
+        white-space: nowrap;
+    }
+
+    .admin-table-attendance th:nth-child(1),
+    .admin-table-attendance td:nth-child(1) { width: 9%; }
+    .admin-table-attendance th:nth-child(2),
+    .admin-table-attendance td:nth-child(2) { width: 12%; }
+    .admin-table-attendance th:nth-child(3),
+    .admin-table-attendance td:nth-child(3) { width: 10%; }
+    .admin-table-attendance th:nth-child(4),
+    .admin-table-attendance td:nth-child(4) { width: 10%; }
+    .admin-table-attendance th:nth-child(5),
+    .admin-table-attendance td:nth-child(5) { width: 9%; }
+    .admin-table-attendance th:nth-child(6),
+    .admin-table-attendance td:nth-child(6) { width: 8%; }
+    .admin-table-attendance th:nth-child(7),
+    .admin-table-attendance td:nth-child(7) { width: 9%; }
+    .admin-table-attendance th:nth-child(8),
+    .admin-table-attendance td:nth-child(8) { width: 11%; }
+    .admin-table-attendance th:nth-child(9),
+    .admin-table-attendance td:nth-child(9) { width: 8%; }
+    .admin-table-attendance th:nth-child(10),
+    .admin-table-attendance td:nth-child(10) { width: 10%; }
+    .admin-table-attendance th:nth-child(11),
+    .admin-table-attendance td:nth-child(11) { width: 11%; }
+    .admin-table-attendance th:nth-child(12),
+    .admin-table-attendance td:nth-child(12) { width: 8%; }
+
+    .admin-table-leave-balance {
+        min-width: 1400px;
+        table-layout: fixed;
+    }
+
+    .admin-table-leave-balance th,
+    .admin-table-leave-balance td {
+        padding: 11px 12px;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
+
+    .admin-table-leave-balance th:nth-child(1),
+    .admin-table-leave-balance td:nth-child(1) { width: 16%; }
+    .admin-table-leave-balance th:nth-child(2),
+    .admin-table-leave-balance td:nth-child(2) { width: 10%; }
+    .admin-table-leave-balance th:nth-child(3),
+    .admin-table-leave-balance td:nth-child(3) { width: 10%; }
+    .admin-table-leave-balance th:nth-child(4),
+    .admin-table-leave-balance td:nth-child(4) { width: 10%; }
+    .admin-table-leave-balance th:nth-child(5),
+    .admin-table-leave-balance td:nth-child(5) { width: 10%; }
+    .admin-table-leave-balance th:nth-child(6),
+    .admin-table-leave-balance td:nth-child(6) { width: 10%; }
+    .admin-table-leave-balance th:nth-child(7),
+    .admin-table-leave-balance td:nth-child(7) { width: 8%; }
+    .admin-table-leave-balance th:nth-child(8),
+    .admin-table-leave-balance td:nth-child(8) { width: 8%; }
+    .admin-table-leave-balance th:nth-child(9),
+    .admin-table-leave-balance td:nth-child(9) { width: 10%; }
+    .admin-table-leave-balance th:nth-child(10),
+    .admin-table-leave-balance td:nth-child(10) { width: 8%; }
 
     .admin-inline-separator {
         color: rgba(255, 255, 255, 0.55);
@@ -488,6 +724,30 @@
         color: #1f2937;
     }
 
+    #deactivateConfirmModal .rp-modal-card {
+        background: linear-gradient(160deg, #0f4c5c, #0b3f4b);
+        border-color: rgba(125, 211, 252, 0.28);
+        color: #e6fffb;
+    }
+
+    #deactivateConfirmModal .rp-modal-card h4 {
+        color: #ecfeff;
+    }
+
+    #deactivateConfirmModal .rp-save-btn {
+        background: #14b8a6;
+    }
+
+    #deactivateConfirmModal .rp-save-btn:hover {
+        background: #0d9488;
+    }
+
+    #deactivateConfirmModal .rp-cancel-btn {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.28);
+        color: #ecfeff;
+    }
+
     @media (min-width: 768px) {
         .admin-form-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -514,7 +774,7 @@
         }
 
         .admin-layout {
-            grid-template-columns: 320px minmax(0, 1fr);
+            grid-template-columns: 260px minmax(0, 1fr);
         }
     }
 </style>
@@ -561,6 +821,11 @@
                 'ctaRoute' => $isMs ? route('ms.leave.requests') : null,
             ],
             [
+                'key' => 'staff-on-tour',
+                'label' => 'Staff on Tour',
+                'summary' => 'View all staff tour records submitted by employees.',
+            ],
+            [
                 'key' => 'reports',
                 'label' => 'Reports',
                 'summary' => 'Generate and export attendance and leave analytics.',
@@ -595,6 +860,7 @@
         $showAddLeaveTypeForm = $showAddLeaveTypeForm ?? request()->boolean('add_leave_type');
         $editingLeaveType = $editingLeaveType ?? null;
         $managedLeaveRecords = $managedLeaveRecords ?? null;
+        $managedStaffTours = $managedStaffTours ?? null;
         $leaveBalanceEmployees = $leaveBalanceEmployees ?? collect();
         $leaveBalanceTypes = $leaveBalanceTypes ?? collect();
         $bonusIpdEmployees = $bonusIpdEmployees ?? collect();
@@ -658,7 +924,7 @@
                         <p>{{ $activeSectionSummary }}</p>
                     @endif
 
-                    <div class="admin-content-box {{ in_array($activeSection, ['roles-permissions', 'leave-types', 'user-management', 'leave-balance'], true) ? 'no-outer-border' : '' }}">
+                    <div class="admin-content-box {{ in_array($activeSection, ['roles-permissions', 'leave-types', 'user-management', 'leave-balance', 'attendance-logs'], true) ? 'no-outer-border' : '' }}">
                     @if(session('success'))
                         <div class="admin-alert admin-alert-success">{{ session('success') }}</div>
                     @endif
@@ -721,8 +987,8 @@
                             }
                         </script>
 
-                        <div class="admin-table-wrap">
-                            <table class="admin-table">
+                        <div class="overflow-x-auto">
+                            <table class="admin-table admin-table-users">
                                 <thead>
                                     <tr>
                                         <th>Department</th>
@@ -1129,18 +1395,6 @@
                                 @csrf
 
                                 <div>
-                                    <label class="rp-assign-label">Employee</label>
-                                    <select name="user_id" class="admin-select" required>
-                                        <option value="">Select Employee</option>
-                                        @foreach($leaveBalanceEmployees as $employee)
-                                            <option value="{{ $employee->id }}">
-                                                {{ $employee->name }}{{ $employee->eid ? ' (' . $employee->eid . ')' : '' }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-
-                                <div>
                                     <label class="rp-assign-label">Leave Type</label>
                                     <select name="leave_type_id" class="admin-select" required>
                                         <option value="">Select Leave Type</option>
@@ -1157,6 +1411,10 @@
                                     <input type="number" step="0.5" min="-365" max="365" name="adjustment" value="{{ old('adjustment') }}" class="admin-input" required>
                                 </div>
 
+                                <div style="grid-column: 1 / -1; margin-top: -4px; color: rgba(255, 255, 255, 0.72); font-size: 0.92rem;">
+                                    Adjustment will be applied to all active employees for the selected leave type.
+                                </div>
+
                                 <div style="grid-column: 1 / -1;">
                                     <button type="submit" class="rp-save-btn">Apply</button>
                                 </div>
@@ -1171,11 +1429,15 @@
                             <h3 style="margin:0 0 14px; color:#fff; font-size:1.35rem; font-weight:800;">Leave Balance List</h3>
 
                             <div class="admin-table-wrap">
-                                <table class="admin-table" style="min-width: 860px;">
+                                <table class="admin-table admin-table-leave-balance">
                                     <thead>
                                         <tr>
                                             <th>Employee</th>
-                                            <th>Leave Type</th>
+                                            <th>Annual Leave</th>
+                                            <th>Bereavement Leave</th>
+                                            <th>Maternity Leave</th>
+                                            <th>Medical Leave</th>
+                                            <th>Paternity Leave</th>
                                             <th>Max</th>
                                             <th>Used</th>
                                             <th>Remaining</th>
@@ -1186,7 +1448,11 @@
                                         @forelse($leaveBalanceRows as $balanceRow)
                                             <tr>
                                                 <td>{{ $balanceRow['employee_name'] }}</td>
-                                                <td>{{ $balanceRow['leave_type_name'] }}</td>
+                                                <td>{{ number_format((float) $balanceRow['annual_leave'], 2) }}</td>
+                                                <td>{{ number_format((float) $balanceRow['bereavement_leave'], 2) }}</td>
+                                                <td>{{ number_format((float) $balanceRow['maternity_leave'], 2) }}</td>
+                                                <td>{{ number_format((float) $balanceRow['medical_leave'], 2) }}</td>
+                                                <td>{{ number_format((float) $balanceRow['paternity_leave'], 2) }}</td>
                                                 <td>{{ number_format((float) $balanceRow['max_per_year'], 2) }}</td>
                                                 <td>{{ number_format((float) $balanceRow['used_days'], 2) }}</td>
                                                 <td>{{ number_format((float) $balanceRow['remaining_days'], 2) }}</td>
@@ -1194,7 +1460,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="6" style="color: rgba(255,255,255,0.75);">No leave balance records available for {{ $leaveBalanceYear }}.</td>
+                                                <td colspan="10" style="color: rgba(255,255,255,0.75);">No leave balance records available for {{ $leaveBalanceYear }}.</td>
                                             </tr>
                                         @endforelse
                                     </tbody>
@@ -1242,7 +1508,7 @@
                             </div>
                         @endif
 
-                        <div class="admin-table-wrap">
+                        <div class="overflow-x-auto">
                             <table class="admin-table">
                                 <thead>
                                     <tr>
@@ -1336,7 +1602,7 @@
                         </div>
 
                         @if($showCreateUserForm)
-                            <div class="mb-5 rounded-lg border border-white/20 bg-white/5 p-4">
+                            <div class="mb-8">
                                 <h3 style="margin:0 0 10px; color:#fff; font-size:1.2rem; font-weight:700;">Create New User</h3>
 
                                 <form method="POST" action="{{ route('admin.users.store') }}" class="admin-form-grid">
@@ -1381,8 +1647,8 @@
                             </div>
                         @endif
 
-                        <div class="admin-table-wrap">
-                            <table class="admin-table">
+                        <div class="overflow-x-auto">
+                            <table class="admin-table admin-table-users">
                                 <thead>
                                     <tr>
                                         <th>Employee ID</th>
@@ -1411,40 +1677,45 @@
                                                 </span>
                                             </td>
                                             <td>
-                                                <button
-                                                    type="button"
-                                                    class="admin-action-link"
-                                                    onclick="openUserEditModalFromButton(this)"
-                                                    data-name="{{ $managedUser->name }}"
-                                                    data-eid="{{ $managedUser->eid ?: '' }}"
-                                                    data-designation="{{ $managedUser->designation ?: '' }}"
-                                                    data-department="{{ $managedUser->department ?: '' }}"
-                                                    data-role-id="{{ $managedUser->role_id }}"
-                                                    data-status="{{ $managedUser->status ?: 'Active' }}"
-                                                    data-update-url="{{ route('admin.users.update', $managedUser) }}"
-                                                >
-                                                    Edit
-                                                </button>
-                                                <span class="admin-inline-separator">|</span>
-                                                <button
-                                                    type="button"
-                                                    class="admin-action-link"
-                                                    onclick="openPasswordResetModalFromButton(this)"
-                                                    data-name="{{ $managedUser->name }}"
-                                                    data-reset-url="{{ route('admin.users.resetPassword', $managedUser) }}"
-                                                >
-                                                    Reset Password
-                                                </button>
-                                                <span class="admin-inline-separator">|</span>
-                                                <form method="POST" action="{{ route('admin.users.delete', $managedUser) }}" style="display:inline;" onsubmit="return confirm('Delete this user permanently?');">
-                                                    @csrf
-                                                    <button type="submit" class="admin-action-link">Delete</button>
-                                                </form>
-                                                <span class="admin-inline-separator">|</span>
-                                                <form method="POST" action="{{ route('admin.users.toggleStatus', $managedUser) }}" style="display:inline;">
-                                                    @csrf
-                                                    <button type="submit" class="admin-action-link">Toggle Status</button>
-                                                </form>
+                                                <details class="admin-actions-dropdown">
+                                                    <summary class="admin-action-dropdown-toggle">Edit</summary>
+                                                    <div class="admin-actions-menu">
+                                                        <button
+                                                            type="button"
+                                                            class="admin-action-menu-item"
+                                                            onclick="openUserEditModalFromButton(this)"
+                                                            data-name="{{ $managedUser->name }}"
+                                                            data-eid="{{ $managedUser->eid ?: '' }}"
+                                                            data-designation="{{ $managedUser->designation ?: '' }}"
+                                                            data-department="{{ $managedUser->department ?: '' }}"
+                                                            data-role-id="{{ $managedUser->role_id }}"
+                                                            data-status="{{ $managedUser->status ?: 'Active' }}"
+                                                            data-update-url="{{ route('admin.users.update', $managedUser) }}"
+                                                        >
+                                                            Edit
+                                                        </button>
+
+                                                        <button
+                                                            type="button"
+                                                            class="admin-action-menu-item"
+                                                            onclick="openPasswordResetModalFromButton(this)"
+                                                            data-name="{{ $managedUser->name }}"
+                                                            data-reset-url="{{ route('admin.users.resetPassword', $managedUser) }}"
+                                                        >
+                                                            Reset Password
+                                                        </button>
+
+                                                        <form method="POST" action="{{ route('admin.users.deactivate', $managedUser) }}" class="js-deactivate-user-form" data-user-name="{{ $managedUser->name }}">
+                                                            @csrf
+                                                            <button type="submit" class="admin-action-menu-item">Deactivate</button>
+                                                        </form>
+
+                                                        <form method="POST" action="{{ route('admin.users.toggleStatus', $managedUser) }}">
+                                                            @csrf
+                                                            <button type="submit" class="admin-action-menu-item">Toggle Status</button>
+                                                        </form>
+                                                    </div>
+                                                </details>
                                             </td>
                                         </tr>
                                     @empty
@@ -1534,6 +1805,22 @@
                             </div>
                         </div>
 
+                        <div id="deactivateConfirmModal" class="rp-modal" aria-hidden="true">
+                            <div class="rp-modal-card">
+                                <h4>Deactivate User</h4>
+                                <p style="margin:0; color:#c8f9f4; font-size:1rem; line-height:1.5;">
+                                    Are you sure you want to deactivate
+                                    <strong id="deactivateConfirmName">this user</strong>?
+                                    They will not be able to log in until reactivated.
+                                </p>
+
+                                <div class="rp-modal-actions" style="margin-top:16px;">
+                                    <button type="button" class="rp-save-btn" id="deactivateConfirmProceed">Deactivate</button>
+                                    <button type="button" class="rp-cancel-btn" id="deactivateConfirmCancel">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+
                         <script>
                             function openUserEditModal(payload = {}) {
                                 const modal = document.getElementById('userEditModal');
@@ -1607,6 +1894,56 @@
                                 document.getElementById('passwordResetModal').classList.remove('open');
                             }
 
+                            let pendingDeactivateForm = null;
+
+                            function openDeactivateConfirmModal(form) {
+                                pendingDeactivateForm = form;
+
+                                const modal = document.getElementById('deactivateConfirmModal');
+                                const nameTarget = document.getElementById('deactivateConfirmName');
+                                const userName = form.getAttribute('data-user-name') || 'this user';
+
+                                nameTarget.textContent = userName;
+                                modal.classList.add('open');
+                            }
+
+                            function closeDeactivateConfirmModal() {
+                                const modal = document.getElementById('deactivateConfirmModal');
+                                modal.classList.remove('open');
+                                pendingDeactivateForm = null;
+                            }
+
+                            document.querySelectorAll('.js-deactivate-user-form').forEach(function (form) {
+                                form.addEventListener('submit', function (event) {
+                                    event.preventDefault();
+                                    openDeactivateConfirmModal(form);
+                                });
+                            });
+
+                            const deactivateConfirmModal = document.getElementById('deactivateConfirmModal');
+                            const deactivateConfirmProceed = document.getElementById('deactivateConfirmProceed');
+                            const deactivateConfirmCancel = document.getElementById('deactivateConfirmCancel');
+
+                            if (deactivateConfirmProceed) {
+                                deactivateConfirmProceed.addEventListener('click', function () {
+                                    if (pendingDeactivateForm) {
+                                        pendingDeactivateForm.submit();
+                                    }
+                                });
+                            }
+
+                            if (deactivateConfirmCancel) {
+                                deactivateConfirmCancel.addEventListener('click', closeDeactivateConfirmModal);
+                            }
+
+                            if (deactivateConfirmModal) {
+                                deactivateConfirmModal.addEventListener('click', function (event) {
+                                    if (event.target === deactivateConfirmModal) {
+                                        closeDeactivateConfirmModal();
+                                    }
+                                });
+                            }
+
                             const userEditModal = document.getElementById('userEditModal');
                             if (userEditModal) {
                                 userEditModal.addEventListener('click', function (event) {
@@ -1642,43 +1979,49 @@
                             }
                         </script>
                     @elseif($activeSection === 'attendance-logs')
-                        <form method="GET" action="{{ route('admin.dashboard') }}" class="mb-5 grid grid-cols-1 gap-3 md:grid-cols-4">
+                        <form method="GET" action="{{ route('admin.dashboard') }}" class="mb-6 admin-attendance-filter-grid">
                             <input type="hidden" name="section" value="attendance-logs">
 
                             <input
                                 type="date"
                                 name="from_date"
                                 value="{{ $attendanceFilters['from_date'] }}"
-                                class="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white focus:outline-none"
+                                class="admin-filter-input"
                             >
                             <input
                                 type="date"
                                 name="to_date"
                                 value="{{ $attendanceFilters['to_date'] }}"
-                                class="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white focus:outline-none"
+                                class="admin-filter-input"
                             >
                             <input
                                 type="text"
                                 name="employee"
                                 value="{{ $attendanceFilters['employee'] }}"
                                 placeholder="Search user, EID, or email"
-                                class="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white placeholder-white/60 focus:outline-none"
+                                class="admin-filter-input"
                             >
                             <button type="submit" class="admin-content-action justify-center">
                                 Filter
                             </button>
                         </form>
 
-                        <div class="overflow-x-auto rounded-lg border border-white/15">
-                            <table class="min-w-full text-left text-sm text-white/90">
+                        <div class="admin-table-wrap admin-table-wrap-no-border mt-2">
+                            <table class="admin-table admin-table-attendance">
                                 <thead class="bg-white/10">
                                     <tr>
                                         <th class="px-4 py-3 font-semibold">Date</th>
-                                        <th class="px-4 py-3 font-semibold">User</th>
+                                        <th class="px-4 py-3 font-semibold">Name</th>
+                                        <th class="px-4 py-3 font-semibold">Designation</th>
                                         <th class="px-4 py-3 font-semibold">Department</th>
+                                        <th class="px-4 py-3 font-semibold">Shift Type</th>
                                         <th class="px-4 py-3 font-semibold">Clock In</th>
+                                        <th class="px-4 py-3 font-semibold">Checkin Status</th>
+                                        <th class="px-4 py-3 font-semibold">Checkin Address</th>
                                         <th class="px-4 py-3 font-semibold">Clock Out</th>
-                                        <th class="px-4 py-3 font-semibold">Status</th>
+                                        <th class="px-4 py-3 font-semibold">Checkout Status</th>
+                                        <th class="px-4 py-3 font-semibold">Checkout Address</th>
+                                        <th class="px-4 py-3 font-semibold">Remarks</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1689,14 +2032,20 @@
                                                 <div class="font-semibold text-white">{{ $attendance->user->name ?? 'Unknown' }}</div>
                                                 <div class="text-xs text-white/65">{{ $attendance->user->eid ?? '-' }}</div>
                                             </td>
+                                            <td class="px-4 py-3">{{ $attendance->user->designation ?? '-' }}</td>
                                             <td class="px-4 py-3">{{ $attendance->user->department ?? '-' }}</td>
+                                            <td class="px-4 py-3">{{ $attendance->shift_name ?: '-' }}</td>
                                             <td class="px-4 py-3">{{ $attendance->clock_in ? \Carbon\Carbon::parse($attendance->clock_in)->format('h:i A') : '--:--' }}</td>
+                                            <td class="px-4 py-3">{{ $attendance->checkin_status ?? '-' }}</td>
+                                            <td class="px-4 py-3">{{ $attendance->clockIn_address ?: '-' }}</td>
                                             <td class="px-4 py-3">{{ $attendance->clock_out ? \Carbon\Carbon::parse($attendance->clock_out)->format('h:i A') : '--:--' }}</td>
-                                            <td class="px-4 py-3">{{ ucfirst((string) ($attendance->status ?? 'present')) }}</td>
+                                            <td class="px-4 py-3">{{ $attendance->checkout_status ?? '-' }}</td>
+                                            <td class="px-4 py-3">{{ $attendance->clockOut_address ?: '-' }}</td>
+                                            <td class="px-4 py-3">{{ $attendance->computed_remarks ?? '-' }}</td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="6" class="px-4 py-8 text-center text-white/65">No attendance records found.</td>
+                                            <td colspan="12" class="px-4 py-8 text-center text-white/65">No attendance records found.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -1756,6 +2105,54 @@
                         @if($managedLeaveRecords)
                             <div class="mt-4">
                                 {{ $managedLeaveRecords->links() }}
+                            </div>
+                        @endif
+                    @elseif($activeSection === 'staff-on-tour')
+                        <div class="admin-table-wrap">
+                            <table class="admin-table" style="min-width: 1100px;">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>EID</th>
+                                        <th>Designation</th>
+                                        <th>Department</th>
+                                        <th>Place</th>
+                                        <th>From</th>
+                                        <th>To</th>
+                                        <th>Total Days</th>
+                                        <th>Purpose</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse(($managedStaffTours ?? collect()) as $tour)
+                                        @php
+                                            $tourStart = \Carbon\Carbon::parse($tour->start_date);
+                                            $tourEnd = \Carbon\Carbon::parse($tour->end_date);
+                                            $tourDays = $tourStart->diffInDays($tourEnd) + 1;
+                                        @endphp
+                                        <tr>
+                                            <td>{{ $tour->user?->name ?? 'Unknown' }}</td>
+                                            <td>{{ $tour->user?->eid ?? '-' }}</td>
+                                            <td>{{ $tour->user?->designation ?? '-' }}</td>
+                                            <td>{{ $tour->user?->department ?? '-' }}</td>
+                                            <td>{{ $tour->place ?? '-' }}</td>
+                                            <td>{{ $tourStart->format('M d, Y') }}</td>
+                                            <td>{{ $tourEnd->format('M d, Y') }}</td>
+                                            <td>{{ $tourDays }}</td>
+                                            <td>{{ $tour->purpose ?: '-' }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="9" class="text-center" style="color: rgba(255,255,255,0.75);">No staff tour records found.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+
+                        @if($managedStaffTours)
+                            <div class="mt-4">
+                                {{ $managedStaffTours->links() }}
                             </div>
                         @endif
                     @elseif($activeSection === 'reports')

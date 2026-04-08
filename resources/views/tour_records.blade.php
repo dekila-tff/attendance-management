@@ -46,6 +46,7 @@
 
                     <a href="{{ route('attendance.history') }}">Attendance</a>
                     <a href="{{ route('leave.create') }}">Leave</a>
+                    <a href="{{ route('adhoc.requests') }}">Adhoc Request</a>
                     <a href="{{ route('tour.records') }}" class="active">Tour</a>
                 </nav>
 

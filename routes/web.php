@@ -42,7 +42,7 @@ Route::middleware('auth:admin')->group(function () {
     Route::post('/admin/users/{user}/update', [AuthController::class, 'adminUpdateUser'])->name('admin.users.update');
     Route::post('/admin/users/{user}/reset-password', [AuthController::class, 'adminResetUserPassword'])->name('admin.users.resetPassword');
     Route::post('/admin/users/{user}/toggle-status', [AuthController::class, 'adminToggleUserStatus'])->name('admin.users.toggleStatus');
-    Route::post('/admin/users/{user}/delete', [AuthController::class, 'adminDeleteUser'])->name('admin.users.delete');
+    Route::post('/admin/users/{user}/deactivate', [AuthController::class, 'adminDeactivateUser'])->name('admin.users.deactivate');
     Route::post('/admin/departments/create', [AuthController::class, 'adminStoreDepartment'])->name('admin.departments.store');
     Route::post('/admin/departments/{department}/update', [AuthController::class, 'adminUpdateDepartment'])->name('admin.departments.update');
     Route::post('/admin/departments/{department}/assign-hod', [AuthController::class, 'adminAssignDepartmentHod'])->name('admin.departments.assignHod');
@@ -68,6 +68,8 @@ Route::middleware('auth:web')->group(function () {
     Route::post('/ms/leave-requests/{leaveRequest}/action', [AuthController::class, 'msLeaveRequestAction'])->name('ms.leave.requests.action');
     Route::post('/hod/leave-requests/{leaveRequest}/action', [AuthController::class, 'hodLeaveRequestAction'])->name('hod.leave.requests.action');
     Route::get('/attendance-history', [AuthController::class, 'attendanceHistory'])->name('attendance.history');
+    Route::get('/adhoc-requests', [AuthController::class, 'showAdhocRequests'])->name('adhoc.requests');
+    Route::post('/adhoc-requests', [AuthController::class, 'storeAdhocRequest'])->name('adhoc.requests.store');
     Route::get('/tour-records', [AuthController::class, 'showTourRecords'])->name('tour.records');
     Route::post('/tour-records', [AuthController::class, 'storeTourRecord'])->name('tour.records.store');
     Route::get('/apply-leave', [AuthController::class, 'showApplyLeave'])->name('leave.create');

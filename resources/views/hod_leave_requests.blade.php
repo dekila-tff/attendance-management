@@ -46,6 +46,7 @@
 
                     <a href="{{ route('attendance.history') }}">Attendance</a>
                     <a href="{{ route('leave.create') }}">Leave</a>
+                    <a href="{{ route('adhoc.requests') }}">Adhoc Request</a>
                     <a href="{{ route('tour.records') }}">Tour</a>
                 </nav>
 
@@ -64,8 +65,15 @@
                         </div>
 
                 @if(session('success'))
-                    <div class="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-                        {{ session('success') }}
+                    <div id="hodSuccessPopup" class="hod-success-popup-overlay">
+                        <div class="hod-success-popup-card">
+                            <button type="button" class="hod-success-popup-close" onclick="closeHodSuccessPopup()">&times;</button>
+                            <h3>Success</h3>
+                            <p>{{ session('success') }}</p>
+                            <div class="hod-success-popup-actions">
+                                <button type="button" class="hod-success-popup-ok" onclick="closeHodSuccessPopup()">OK</button>
+                            </div>
+                        </div>
                     </div>
                 @endif
 
@@ -184,6 +192,13 @@
         let formToSubmit = null;
         const unityModal = document.getElementById('unityConfirmModal');
         const unityReasonInput = document.getElementById('unityRejectReason');
+        const hodSuccessPopup = document.getElementById('hodSuccessPopup');
+
+        function closeHodSuccessPopup() {
+            if (hodSuccessPopup) {
+                hodSuccessPopup.style.display = 'none';
+            }
+        }
 
         function resetRejectModal() {
             unityModal.style.display = 'none';
@@ -239,8 +254,17 @@
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
                 resetRejectModal();
+                closeHodSuccessPopup();
             }
         });
+
+        if (hodSuccessPopup) {
+            hodSuccessPopup.addEventListener('click', function(event) {
+                if (event.target === hodSuccessPopup) {
+                    closeHodSuccessPopup();
+                }
+            });
+        }
     </script>
     <style>
         .employee-page {
@@ -354,6 +378,70 @@
         .employee-main {
             flex: 1;
             padding: 20px;
+        }
+
+        .hod-success-popup-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(6, 78, 59, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            z-index: 1200;
+        }
+
+        .hod-success-popup-card {
+            width: min(440px, 100%);
+            border-radius: 16px;
+            background: #ffffff;
+            color: #0f172a;
+            box-shadow: 0 24px 50px rgba(2, 6, 23, 0.35);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            padding: 20px 20px 18px;
+            position: relative;
+        }
+
+        .hod-success-popup-card h3 {
+            margin: 0 0 8px;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #0f766e;
+        }
+
+        .hod-success-popup-card p {
+            margin: 0;
+            color: #334155;
+            line-height: 1.45;
+        }
+
+        .hod-success-popup-close {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            border: 0;
+            background: transparent;
+            color: #64748b;
+            font-size: 26px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 2px;
+        }
+
+        .hod-success-popup-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+
+        .hod-success-popup-ok {
+            border: 0;
+            border-radius: 10px;
+            background: #0f766e;
+            color: #fff;
+            padding: 9px 16px;
+            font-weight: 700;
+            cursor: pointer;
         }
 
         .unity-modal-overlay {

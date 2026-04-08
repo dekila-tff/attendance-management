@@ -13,35 +13,18 @@ class AdminTableSeeder extends Seeder
      */
     public function run(): void
     {
-        $adminEmail = env('ADMIN_EMAIL', 'admin@ntmh.bt');
-        $adminUsername = trim((string) env('ADMIN_USERNAME', ''));
+        $adminUsername = trim((string) env('ADMIN_USERNAME', env('ADMIN_EID', 'ADM0001')));
 
-        $adminUser = DB::table('users')
-            ->where('email', $adminEmail)
-            ->first();
+        DB::table('admins')->upsert([
+            [
+                'name' => env('ADMIN_NAME', 'System Admin'),
+                'username' => $adminUsername,
+                'password' => Hash::make(env('ADMIN_PASSWORD', 'Admin@123')),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['username'], ['name', 'password', 'updated_at']);
 
-        if (! $adminUser && $adminUsername !== '') {
-            $adminUser = DB::table('users')
-                ->where('eid', $adminUsername)
-                ->orWhere('email', $adminUsername)
-                ->first();
-        }
-
-        if (! $adminUser) {
-            $this->command?->warn('No matching admin user found. Set ADMIN_EMAIL or ADMIN_USERNAME to an existing user.');
-            return;
-        }
-
-        DB::table('admins')->truncate();
-
-        DB::table('admins')->insert([
-            'name' => $adminUser->name,
-            'username' => $adminUser->eid ?? env('ADMIN_USERNAME', 'admin'),
-            'password' => $adminUser->password ?? Hash::make(env('ADMIN_PASSWORD', 'Admin@123')),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $this->command?->info('Admins table updated with username: ' . ($adminUser->eid ?? env('ADMIN_USERNAME', 'admin')));
+        $this->command?->info('Admins table ensured with username: ' . $adminUsername);
     }
 }

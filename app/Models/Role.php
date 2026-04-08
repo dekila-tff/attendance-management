@@ -9,7 +9,7 @@ class Role extends Model
 {
     use HasFactory;
 
-    protected $primaryKey = 'roles_id';
+    protected $primaryKey = 'role_id';
 
     public $incrementing = true;
 
@@ -18,7 +18,7 @@ class Role extends Model
     protected $fillable = ['name', 'description', 'status'];
 
     protected $casts = [
-        'roles_id' => 'integer',
+        'role_id' => 'integer',
     ];
 
     /**
@@ -36,13 +36,13 @@ class Role extends Model
             'permission_role',
             'role_id',
             'permission_id',
-            'roles_id',
-            'permissions_id'
+            'role_id',
+            'permission_id'
         )->withTimestamps();
     }
 
     public function getIdAttribute()
     {
-        return $this->attributes['roles_id'] ?? null;
+        return $this->attributes['role_id'] ?? null;
     }
 }

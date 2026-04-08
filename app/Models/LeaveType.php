@@ -9,7 +9,7 @@ class LeaveType extends Model
 {
     use HasFactory;
 
-    protected $primaryKey = 'leave_types_id';
+    protected $primaryKey = 'leave_type_id';
 
     public $incrementing = true;
 
@@ -33,11 +33,11 @@ class LeaveType extends Model
      */
     public function leaveRequests()
     {
-        return $this->hasMany(LeaveRequest::class, 'leave_type_id', 'leave_types_id');
+        return $this->hasMany(LeaveRequest::class, 'leave_type_id', 'leave_type_id');
     }
 
     public function getIdAttribute()
     {
-        return $this->attributes['leave_types_id'] ?? null;
+        return $this->attributes['leave_type_id'] ?? null;
     }
 }

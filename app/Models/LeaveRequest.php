@@ -45,7 +45,7 @@ class LeaveRequest extends Model
      */
     public function user()
     {
-        return $this->belongsTo(User::class, 'user_id', 'users_id');
+        return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
     /**
@@ -53,7 +53,7 @@ class LeaveRequest extends Model
      */
     public function leaveType()
     {
-        return $this->belongsTo(LeaveType::class, 'leave_type_id', 'leave_types_id');
+        return $this->belongsTo(LeaveType::class, 'leave_type_id', 'leave_type_id');
     }
 
     public function getIdAttribute()

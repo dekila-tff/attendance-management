@@ -218,6 +218,7 @@
 
                     <a href="{{ route('attendance.history') }}">Attendance</a>
                     <a href="{{ route('leave.create') }}" class="active">Leave</a>
+                    <a href="{{ route('adhoc.requests') }}">Adhoc Request</a>
                     <a href="{{ route('tour.records') }}">Tour</a>
                 </nav>
 
@@ -371,7 +372,13 @@
                                         <td class="px-4 py-4 align-middle">{{ $leave->is_direct_to_ms ? '-' : 'HoD' }}</td>
                                     @endunless
                                     @unless($isHod)
-                                        <td class="px-4 py-4 align-middle">{{ $leave->is_direct_to_ms ? 'MS' : '-' }}</td>
+                                        <td class="px-4 py-4 align-middle">
+                                            @php
+                                                $msStatusText = strtolower(trim((string) ($leave->ms_status ?? '')));
+                                                $hasMsAction = in_array($msStatusText, ['approved', 'rejected'], true);
+                                            @endphp
+                                            {{ ($leave->is_direct_to_ms || $hasMsAction) ? 'MS' : '-' }}
+                                        </td>
                                     @endunless
                                     @unless($isHod)
                                         <td class="px-4 py-4 align-middle">

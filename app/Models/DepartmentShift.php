@@ -9,6 +9,8 @@ class DepartmentShift extends Model
 {
     use HasFactory;
 
+    protected $primaryKey = 'department_shift_id';
+
     protected $fillable = [
         'department',
         'name',

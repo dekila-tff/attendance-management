@@ -11,6 +11,8 @@ class Attendance extends Model
 
     const CREATED_AT = null; // Disable created_at timestamp
 
+    protected $primaryKey = 'attendance_id';
+
     protected $fillable = [
         'user_id',
         'date',
@@ -38,6 +40,6 @@ class Attendance extends Model
      */
     public function user()
     {
-        return $this->belongsTo(User::class, 'user_id', 'users_id');
+        return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 }

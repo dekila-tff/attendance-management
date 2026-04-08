@@ -9,7 +9,7 @@ class Permission extends Model
 {
     use HasFactory;
 
-    protected $primaryKey = 'permissions_id';
+    protected $primaryKey = 'permission_id';
 
     public $incrementing = true;
 
@@ -27,13 +27,13 @@ class Permission extends Model
             'permission_role',
             'permission_id',
             'role_id',
-            'permissions_id',
-            'roles_id'
+            'permission_id',
+            'role_id'
         )->withTimestamps();
     }
 
     public function getIdAttribute()
     {
-        return $this->attributes['permissions_id'] ?? null;
+        return $this->attributes['permission_id'] ?? null;
     }
 }
