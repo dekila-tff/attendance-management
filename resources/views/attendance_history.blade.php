@@ -27,9 +27,7 @@
                     <a href="{{ route('dashboard') }}">My Dashboard</a>
 
                     @if($isMs)
-                        <a href="{{ route('ms.leave.requests') }}">MS Dashboard</a>
-                    @else
-                        <span class="disabled">MS Dashboard</span>
+                        <a href="{{ route('ms.leave.requests') }}" class="font-semibold" style="color: #fbbf24;">MS Dashboard</a>
                     @endif
 
                     @if($isHod)
@@ -40,8 +38,6 @@
                             @endif
                         </a>
                         <a href="{{ route('hod.staff.list') }}">Staff List</a>
-                    @else
-                        <span class="disabled">Leave Approve</span>
                     @endif
 
                     <a href="{{ route('attendance.history') }}" class="active">Attendance</a>
@@ -114,10 +110,10 @@
                                     <th class="px-6 py-3 text-sm text-white/70 font-medium">Date</th>
                                     <th class="px-6 py-3 text-sm text-white/70 font-medium">Clock In</th>
                                     <th class="px-6 py-3 text-sm text-white/70 font-medium">Clock Out</th>
-                                    <th class="px-6 py-3 text-sm text-white/70 font-medium">Status</th>
-                                    <th class="px-6 py-3 text-sm text-white/70 font-medium">Remarks</th>
                                     <th class="px-6 py-3 text-sm text-white/70 font-medium">Clock In Location</th>
                                     <th class="px-6 py-3 text-sm text-white/70 font-medium">Clock Out Location</th>
+                                    <th class="px-6 py-3 text-sm text-white/70 font-medium">Status</th>
+                                    <th class="px-6 py-3 text-sm text-white/70 font-medium">Remarks</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -130,9 +126,15 @@
                                         <td class="px-6 py-4 text-orange-300">
                                             {{ $attendance->clock_out ? \Carbon\Carbon::parse($attendance->clock_out)->format('h:i A') : '--:--' }}
                                         </td>
+                                        <td class="px-6 py-4 text-white/80">{{ $attendance->clockIn_address ?: '-' }}</td>
+                                        <td class="px-6 py-4 text-white/80">{{ $attendance->clockOut_address ?: '-' }}</td>
                                         <td class="px-6 py-4">
                                             @if($attendance->status === 'leave')
                                                 <span class="text-blue-300">Leave</span>
+                                            @elseif($attendance->status === 'on tour')
+                                                <span class="text-purple-300 font-semibold">On Tour</span>
+                                            @elseif($attendance->status === 'missing')
+                                                <span class="text-red-400 font-semibold">Missing</span>
                                             @elseif($attendance->clock_out)
                                                 <span class="text-green-400">{{ ucfirst($attendance->status) }}</span>
                                             @elseif($attendance->clock_in)
@@ -142,8 +144,6 @@
                                             @endif
                                         </td>
                                         <td class="px-6 py-4 text-white/80">{{ $attendance->remarks ?: '-' }}</td>
-                                        <td class="px-6 py-4 text-white/80">{{ $attendance->clockIn_address ?: '-' }}</td>
-                                        <td class="px-6 py-4 text-white/80">{{ $attendance->clockOut_address ?: '-' }}</td>
                                     </tr>
                                 @empty
                                     <tr>

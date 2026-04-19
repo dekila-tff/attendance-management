@@ -1322,6 +1322,14 @@ class AuthController extends Controller
             ->get(['user_id', 'start_date', 'end_date', 'total_days'])
             ->keyBy('user_id');
 
+        // Get today's attendance records to check for "on tour" status
+        $todayAttendances = Attendance::query()
+            ->whereIn('user_id', $staffUserIds)
+            ->whereDate('date', $today)
+            ->get(['user_id', 'status', 'remarks'])
+            ->keyBy('user_id');
+
+        // Also get tours for backup (in case attendance record wasn't created)
         $activeTours = Tour::query()
             ->whereIn('users_id', $staffUserIds)
             ->whereDate('start_date', '<=', $today)
@@ -1331,31 +1339,40 @@ class AuthController extends Controller
             ->keyBy('users_id');
 
         $staffMembers->setCollection(
-            $staffMembers->getCollection()->map(function ($staff) use ($activeLeaves, $activeTours) {
+            $staffMembers->getCollection()->map(function ($staff) use ($activeLeaves, $todayAttendances, $activeTours) {
                 $dutyStatus = 'On Duty';
                 $remarks = '-';
 
-                $activeLeave = $activeLeaves->get($staff->user_id);
-                if ($activeLeave) {
-                    $dutyStatus = 'On Leave';
-                    $remarks = sprintf(
-                        '%s day(s) (%s to %s)',
-                        rtrim(rtrim(number_format((float) $activeLeave->total_days, 1, '.', ''), '0'), '.'),
-                        Carbon::parse($activeLeave->start_date)->format('d M Y'),
-                        Carbon::parse($activeLeave->end_date)->format('d M Y')
-                    );
+                // Check if they're on tour today (from attendance record)
+                $todayAttendance = $todayAttendances->get($staff->user_id);
+                if ($todayAttendance && $todayAttendance->status === 'on tour') {
+                    $dutyStatus = 'On Tour';
+                    $remarks = $todayAttendance->remarks ?? '-';
                 } else {
-                    $activeTour = $activeTours->get($staff->user_id);
-                    if ($activeTour) {
-                        $dutyStatus = 'On Tour';
-                    $tourDays = Carbon::parse($activeTour->start_date)->diffInDays(Carbon::parse($activeTour->end_date)) + 1;
+                    // Check for active leave
+                    $activeLeave = $activeLeaves->get($staff->user_id);
+                    if ($activeLeave) {
+                        $dutyStatus = 'On Leave';
                         $remarks = sprintf(
-                        '%d day(s) (%s to %s)',
-                        $tourDays,
-                        Carbon::parse($activeTour->start_date)->format('d M Y'),
-                        Carbon::parse($activeTour->end_date)->format('d M Y')
-                    );
-                }
+                            '%s day(s) (%s to %s)',
+                            rtrim(rtrim(number_format((float) $activeLeave->total_days, 1, '.', ''), '0'), '.'),
+                            Carbon::parse($activeLeave->start_date)->format('d M Y'),
+                            Carbon::parse($activeLeave->end_date)->format('d M Y')
+                        );
+                    } else {
+                        // Check for active tour (backup)
+                        $activeTour = $activeTours->get($staff->user_id);
+                        if ($activeTour) {
+                            $dutyStatus = 'On Tour';
+                            $tourDays = Carbon::parse($activeTour->start_date)->diffInDays(Carbon::parse($activeTour->end_date)) + 1;
+                            $remarks = sprintf(
+                                '%d day(s) (%s to %s)',
+                                $tourDays,
+                                Carbon::parse($activeTour->start_date)->format('d M Y'),
+                                Carbon::parse($activeTour->end_date)->format('d M Y')
+                            );
+                        }
+                    }
                 }
 
                 $staff->duty_status = $dutyStatus;
@@ -1507,9 +1524,23 @@ class AuthController extends Controller
     public function msLeaveRequests(Request $request)
     {
         $user = Auth::user();
+        $isMs = $this->isMs($user);
+        $isHod = $this->isHod($user);
+        $leaveApproveCount = 0;
 
-        if (!$this->isMs($user)) {
+        if (!$isMs) {
             abort(403, 'Only Medical Superintendent can view this page.');
+        }
+
+        if ($isHod) {
+            $leaveApproveCount = LeaveRequest::query()
+                ->where('submit_to', 'HoD')
+                ->where('hod_status', 'Pending')
+                ->whereHas('user', function ($query) use ($user) {
+                    $query->where('department', $user->department)
+                        ->where('user_id', '!=', $user->id);
+                })
+                ->count();
         }
 
         $leaveRequests = LeaveRequest::query()
@@ -1559,11 +1590,43 @@ class AuthController extends Controller
             ->paginate(15, ['*'], 'attendance_page')
             ->withQueryString();
 
+        $msQueueScope = LeaveRequest::query()
+            ->where('submit_to', 'MS')
+            ->where(function ($query) {
+                $query->where('hod_status', 'Forwarded')
+                    ->orWhere('is_direct_to_ms', true);
+            });
+
+        $msQuickLinks = [
+            'total_staff' => User::query()
+                ->where('role_id', '!=', 1)
+                ->whereRaw("LOWER(COALESCE(status, 'active')) = ?", ['active'])
+                ->count(),
+            'pending' => (clone $msQueueScope)
+                ->whereRaw("LOWER(COALESCE(ms_status, 'pending')) = ?", ['pending'])
+                ->count(),
+            'approved' => (clone $msQueueScope)
+                ->whereRaw("LOWER(COALESCE(ms_status, '')) = ?", ['approved'])
+                ->count(),
+            'adhoc_requests' => AdhocRequest::query()->count(),
+            'rejected' => (clone $msQueueScope)
+                ->whereRaw("LOWER(COALESCE(ms_status, '')) = ?", ['rejected'])
+                ->count(),
+            'staff_on_tour' => Tour::query()
+                ->whereDate('start_date', '<=', Carbon::today()->toDateString())
+                ->whereDate('end_date', '>=', Carbon::today()->toDateString())
+                ->count(),
+        ];
+
         return view('ms_leave_requests', [
             'user' => $user,
+            'isMs' => $isMs,
+            'isHod' => $isHod,
+            'leaveApproveCount' => $leaveApproveCount,
             'leaveRequests' => $leaveRequests,
             'attendanceLogs' => $attendanceLogs,
             'attendanceFilters' => $attendanceFilters,
+            'msQuickLinks' => $msQuickLinks,
         ]);
     }
 
@@ -1609,14 +1672,90 @@ class AuthController extends Controller
 
         $attendances = $attendanceQuery->paginate(20)->withQueryString();
 
+        $isHod = $this->isHod($user);
+        $isMs = $this->isMs($user);
+        $leaveApproveCount = 0;
+
+        if ($isHod) {
+            $leaveApproveCount = LeaveRequest::query()
+                ->where('submit_to', 'HoD')
+                ->where('hod_status', 'Pending')
+                ->whereHas('user', function ($query) use ($user) {
+                    $query->where('department', $user->department)
+                        ->where('user_id', '!=', $user->id);
+                })
+                ->count();
+        }
+
         return view('ms_attendance_logs', [
             'user' => $user,
+            'isHod' => $isHod,
+            'isMs' => $isMs,
+            'leaveApproveCount' => $leaveApproveCount,
             'attendances' => $attendances,
             'filters' => [
                 'from_date' => (string) ($filters['from_date'] ?? ''),
                 'to_date' => (string) ($filters['to_date'] ?? ''),
                 'employee' => (string) ($filters['employee'] ?? ''),
             ],
+        ]);
+    }
+
+    public function msStaffDirectory(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$this->isMs($user)) {
+            abort(403, 'Only Medical Superintendent can view staff directory.');
+        }
+
+        $search = $request->query('search', '');
+        $department = $request->query('department', '');
+
+        $staffQuery = User::query()
+            ->where('role_id', '!=', 1)
+            ->orderBy('department')
+            ->orderBy('name');
+
+        if (!empty($search)) {
+            $staffQuery->where(function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('eid', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        if (!empty($department)) {
+            $staffQuery->where('department', $department);
+        }
+
+        $staff = $staffQuery->paginate(20)->withQueryString();
+        $departments = User::where('role_id', '!=', 1)->distinct()->pluck('department')->sort();
+
+        $isHod = $this->isHod($user);
+        $isMs = $this->isMs($user);
+        $leaveApproveCount = 0;
+
+        if ($isHod) {
+            $leaveApproveCount = LeaveRequest::query()
+                ->where('submit_to', 'HoD')
+                ->where('hod_status', 'Pending')
+                ->whereHas('user', function ($query) use ($user) {
+                    $query->where('department', $user->department)
+                        ->where('user_id', '!=', $user->id);
+                })
+                ->count();
+        }
+
+        return view('ms_staff_directory', [
+            'user' => $user,
+            'isHod' => $isHod,
+            'isMs' => $isMs,
+            'leaveApproveCount' => $leaveApproveCount,
+            'staff' => $staff,
+            'departments' => $departments,
+            'search' => $search,
+            'selectedDepartment' => $department,
         ]);
     }
 
@@ -1744,25 +1883,39 @@ class AuthController extends Controller
         $currentMonth = Carbon::now()->startOfMonth();
         $currentMonthEnd = Carbon::now()->endOfMonth();
 
-        // Get attendance summary for current month
+        // Get attendance summary for current month with bunking logic applied
         $currentMonthAttendances = Attendance::where('user_id', $user->id)
             ->whereBetween('date', [$currentMonth, $currentMonthEnd])
-            ->get();
+            ->get()
+            ->map(function($att) {
+                // Mark as bunking if checked in but no checkout by 3:30 PM
+                if ($att->clock_in && !$att->clock_out) {
+                    $threePMToday = Carbon::parse($att->date)->setTime(15, 30, 0);
+                    $now = Carbon::now();
+                    
+                    // If it's past 3:30 PM on that date or any later date, mark as bunking
+                    if ($now->isAfter($threePMToday)) {
+                        $att->status = 'missing';
+                        $att->remarks = 'bunking';
+                    }
+                }
+                return $att;
+            });
 
-        // Calculate summary stats
+        // Calculate summary stats (after bunking logic applied)
         // Present = both clock_in and clock_out recorded
         $presentDays = $currentMonthAttendances->filter(function($att) {
-            return $att->clock_in && $att->clock_out;
+            return $att->clock_in && $att->clock_out && $att->status !== 'missing';
         })->count();
         
         // Late = clock_in recorded and remarks contain "Late"
         $lateDays = $currentMonthAttendances->filter(function($att) {
-            return $att->clock_in && stripos($att->remarks ?? '', 'late') !== false;
+            return $att->clock_in && stripos($att->remarks ?? '', 'late') !== false && $att->status !== 'missing';
         })->count();
         
         // Absent = no clock_in and not a leave day
         $absentDays = $currentMonthAttendances->filter(function($att) {
-            return $att->status !== 'leave' && !$att->clock_in;
+            return $att->status !== 'leave' && $att->status !== 'missing' && !$att->clock_in;
         })->count();
         
         // Leave = status is leave
@@ -1774,6 +1927,20 @@ class AuthController extends Controller
             ->orderByDesc('date');
 
         $attendances = $historyQuery->paginate(15)->withQueryString();
+        
+        // Apply bunking logic to paginated results
+        $attendances->getCollection()->transform(function($att) {
+            if ($att->clock_in && !$att->clock_out) {
+                $threePMToday = Carbon::parse($att->date)->setTime(15, 30, 0);
+                $now = Carbon::now();
+                
+                if ($now->isAfter($threePMToday)) {
+                    $att->status = 'missing';
+                    $att->remarks = 'bunking';
+                }
+            }
+            return $att;
+        });
 
         return view('attendance_history', [
             'user' => $user,
@@ -1925,6 +2092,23 @@ class AuthController extends Controller
             'purpose' => trim((string) ($validated['purpose'] ?? '')) ?: null,
             'office_order_pdf' => $pdfPath,
         ]);
+
+        // Mark attendance records as "on tour" for the tour dates
+        $tourStart = Carbon::parse($startDate);
+        $tourEnd = Carbon::parse($endDate);
+        
+        for ($date = $tourStart; $date->lte($tourEnd); $date->addDay()) {
+            Attendance::updateOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'date' => $date->toDateString(),
+                ],
+                [
+                    'status' => 'on tour',
+                    'remarks' => 'on tour - ' . trim((string) $validated['place']),
+                ]
+            );
+        }
 
         return redirect()->route('tour.records')
             ->with('success', 'Tour record saved successfully.')

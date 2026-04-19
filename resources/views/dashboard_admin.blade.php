@@ -552,38 +552,57 @@
     }
 
     .rp-modal-card {
-        width: min(560px, 96vw);
+        width: min(600px, 96vw);
         border-radius: 14px;
         border: 1px solid rgba(255, 255, 255, 0.2);
         background: #e5e7eb;
-        padding: 16px;
+        padding: 24px;
         color: #1f2937;
     }
 
     .rp-modal-card h4 {
-        margin: 0 0 14px;
+        margin: 0 0 20px;
         font-size: 2rem;
         line-height: 1.1;
         font-weight: 800;
+        color: #0f172a;
+    }
+    
+    #passwordResetModal .admin-form-grid {
+        gap: 16px;
     }
 
     .rp-modal-label {
         display: block;
         margin-bottom: 6px;
         font-size: 1rem;
-        color: #475569;
+        color: #0f172a;
+        font-weight: 600;
     }
 
     .rp-modal-input,
     .rp-modal-select {
         width: 100%;
-        border: 1px solid #f59e0b;
+        border: 2px solid #f59e0b;
         border-radius: 9px;
-        padding: 10px 12px;
+        padding: 12px 14px;
         font-size: 1.1rem;
-        color: #1f2937;
-        background: #fff;
+        color: #000;
+        background: #ffffff;
         margin-bottom: 10px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+    }
+    
+    .rp-modal-input::placeholder {
+        color: #3f3f3f;
+        font-weight: 600;
+        opacity: 1;
+    }
+    
+    input[type="password"].rp-modal-input {
+        letter-spacing: 0.3em;
+        font-size: 1.4rem;
     }
 
     .rp-modal-actions {
@@ -690,6 +709,23 @@
         background: #ffffff;
         border-color: #cbd5e1;
         color: #1f2937;
+    }
+    
+    #passwordResetModal .admin-input {
+        background: #ffffff;
+        border: 2px solid #f59e0b;
+        color: #000;
+        padding: 14px 16px;
+        font-size: 1.15rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        margin-bottom: 14px;
+    }
+    
+    #passwordResetModal input[type="password"].admin-input::placeholder {
+        color: #4b5563;
+        font-weight: 600;
+        opacity: 1;
     }
 
     #departmentModal .admin-input,

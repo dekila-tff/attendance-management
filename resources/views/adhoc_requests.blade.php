@@ -27,9 +27,7 @@
                     <a href="{{ route('dashboard') }}">My Dashboard</a>
 
                     @if($isMs)
-                        <a href="{{ route('ms.leave.requests') }}">MS Dashboard</a>
-                    @else
-                        <span class="disabled">MS Dashboard</span>
+                        <a href="{{ route('ms.leave.requests') }}" class="font-semibold" style="color: #fbbf24;">MS Dashboard</a>
                     @endif
 
                     @if($isHod)
@@ -40,8 +38,6 @@
                             @endif
                         </a>
                         <a href="{{ route('hod.staff.list') }}">Staff List</a>
-                    @else
-                        <span class="disabled">Leave Approve</span>
                     @endif
 
                     <a href="{{ route('attendance.history') }}">Attendance</a>

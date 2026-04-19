@@ -3,199 +3,239 @@
 @section('title', 'MS Leave Requests')
 
 @section('content')
-    <div class="min-h-screen p-8">
-        <div class="max-w-6xl mx-auto">
-            <div class="card-backdrop rounded-xl p-8 mb-6">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
-                    <div>
-                        <h1 class="text-3xl font-bold text-white">Employee Leave Requests</h1>
-                        <p class="text-white/70 mt-1">Forwarded by HoD to Medical Superintendent</p>
+    <div class="employee-page">
+        <div class="employee-layout">
+            <aside class="employee-sidebar">
+                <div class="employee-profile">
+                    @if($user->profile_picture && file_exists(public_path($user->profile_picture)))
+                        <img src="{{ asset($user->profile_picture) }}" alt="Profile Picture" class="employee-avatar-image">
+                    @else
+                        <div class="employee-avatar-fallback">
+                            {{ strtoupper(substr($user->name, 0, 1)) }}
+                        </div>
+                    @endif
+
+                    <div class="employee-profile-meta">
+                        <h2>{{ $user->name }}</h2>
+                        <p>{{ $user->eid ?? 'N/A' }}</p>
                     </div>
-                    <a href="{{ route('dashboard') }}" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition text-center">
-                        Back to Dashboard
-                    </a>
+
+                    @include('auth.notification_bell_widget')
                 </div>
 
-                @if(session('success'))
-                    <div class="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-                        {{ session('success') }}
-                    </div>
-                @endif
+                <nav class="employee-nav">
+                    <a href="{{ route('dashboard') }}">My Dashboard</a>
 
-                @if(session('error'))
-                    <div class="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                        {{ session('error') }}
-                    </div>
-                @endif
+                    @if($isMs)
+                        <a href="{{ route('ms.leave.requests') }}" class="font-semibold text-amber-400">MS Dashboard</a>
+                    @endif
 
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-[1160px] text-left text-sm text-white/85">
-                        <thead class="bg-white/5 text-white/70">
-                            <tr class="border-b border-white/10">
-                                <th class="px-4 py-3 font-medium">Employee</th>
-                                <th class="px-4 py-3 font-medium">Department</th>
-                                <th class="px-4 py-3 font-medium">Type</th>
-                                <th class="px-4 py-3 font-medium">Start</th>
-                                <th class="px-4 py-3 font-medium">End</th>
-                                <th class="px-4 py-3 font-medium">Days</th>
-                                <th class="px-4 py-3 font-medium">Reason</th>
-                                <th class="px-4 py-3 font-medium">HoD Status</th>
-                                <th class="px-4 py-3 font-medium">Prescription</th>
-                                <th class="px-4 py-3 font-medium">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($leaveRequests as $leave)
-                                <tr class="border-b border-white/10 hover:bg-white/5 align-top">
-                                    <td class="px-4 py-3 text-white font-medium">{{ $leave->user?->name ?? 'Unknown' }}</td>
-                                    <td class="px-4 py-3">{{ $leave->user?->department ?? 'N/A' }}</td>
-                                    <td class="px-4 py-3">{{ $leave->leaveType?->name ?? $leave->leave_type }}</td>
-                                    <td class="px-4 py-3">{{ \Carbon\Carbon::parse($leave->start_date)->format('Y-m-d') }}</td>
-                                    <td class="px-4 py-3">{{ \Carbon\Carbon::parse($leave->end_date)->format('Y-m-d') }}</td>
-                                    <td class="px-4 py-3">{{ number_format((float) $leave->total_days, 2) }}</td>
-                                    <td class="px-4 py-3 max-w-sm break-words">{{ $leave->reason }}</td>
-                                    <td class="px-4 py-3">{{ $leave->hod_status }}</td>
-                                    <td class="px-4 py-3">
-                                        @if($leave->prescription)
-                                            <a href="{{ asset('storage/' . $leave->prescription) }}" target="_blank" class="text-cyan-300 hover:text-cyan-200 underline">
-                                                View
-                                            </a>
-                                        @else
-                                            <span class="text-white/50">-</span>
-                                        @endif
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        @if(strtolower((string) $leave->ms_status) === 'pending')
-                                            <div class="flex gap-2">
-                                                <form method="POST" action="{{ route('ms.leave.requests.action', $leave) }}">
-                                                    @csrf
-                                                    <input type="hidden" name="action" value="approve">
-                                                    <button type="submit" class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 transition">
-                                                        Approve
-                                                    </button>
-                                                </form>
-                                                <form method="POST" action="{{ route('ms.leave.requests.action', $leave) }}" onsubmit="return confirm('Reject this leave request?');">
-                                                    @csrf
-                                                    <input type="hidden" name="action" value="reject">
-                                                    <button type="submit" class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 transition">
-                                                        Reject
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        @elseif(strtolower((string) $leave->ms_status) === 'approved')
-                                            <span class="inline-flex rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-200">Approved</span>
-                                        @elseif(strtolower((string) $leave->ms_status) === 'rejected')
-                                            <span class="inline-flex rounded-full bg-red-500/20 px-2.5 py-1 text-xs font-semibold text-red-200">Rejected</span>
-                                        @else
-                                            <span class="text-white/50">-</span>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="10" class="px-4 py-10 text-center text-white/60">No leave requests forwarded to MS yet.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                    @if($isHod)
+                        <a href="{{ route('hod.staff.list') }}">Staff List</a>
+                    @endif
 
-                <div class="mt-6">
-                    {{ $leaveRequests->links() }}
-                </div>
-            </div>
+                    <a href="{{ route('attendance.history') }}">Attendance</a>
+                    <a href="{{ route('leave.create') }}">Leave</a>
+                    <a href="{{ route('adhoc.requests') }}">Adhoc Request</a>
+                    <a href="{{ route('tour.records') }}">Tour</a>
+                </nav>
 
-            <div class="card-backdrop rounded-xl p-8">
-                <div class="mb-6">
-                    <h2 class="text-2xl font-bold text-white">Employee Attendance Logs</h2>
-                    <p class="mt-1 text-white/70">Attendance records captured from employee clock-in and clock-out</p>
-                </div>
-
-                <form method="GET" action="{{ route('ms.leave.requests') }}" class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
-                    <div>
-                        <label for="att_from_date" class="mb-2 block text-sm text-white/80">From Date</label>
-                        <input
-                            id="att_from_date"
-                            name="att_from_date"
-                            type="date"
-                            value="{{ $attendanceFilters['from_date'] ?? '' }}"
-                            class="h-10 w-full rounded-lg border border-white/20 bg-white/5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        >
-                    </div>
-
-                    <div>
-                        <label for="att_to_date" class="mb-2 block text-sm text-white/80">To Date</label>
-                        <input
-                            id="att_to_date"
-                            name="att_to_date"
-                            type="date"
-                            value="{{ $attendanceFilters['to_date'] ?? '' }}"
-                            class="h-10 w-full rounded-lg border border-white/20 bg-white/5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        >
-                    </div>
-
-                    <div>
-                        <label for="att_employee" class="mb-2 block text-sm text-white/80">Employee</label>
-                        <input
-                            id="att_employee"
-                            name="att_employee"
-                            type="text"
-                            value="{{ $attendanceFilters['employee'] ?? '' }}"
-                            placeholder="Name, EID or email"
-                            class="h-10 w-full rounded-lg border border-white/20 bg-white/5 px-3 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        >
-                    </div>
-
-                    <div class="flex items-end">
-                        <button type="submit" class="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-lg border border-white/20 bg-white/5 px-4 font-medium text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/40">
-                            Filter
-                        </button>
-                    </div>
+                <form method="POST" action="{{ route('logout') }}" class="sidebar-logout-form">
+                    @csrf
+                    <button type="submit" class="logout-btn">Logout</button>
                 </form>
+            </aside>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-[1300px] text-left text-sm text-white/85">
-                        <thead class="bg-white/5 text-white/70">
-                            <tr class="border-b border-white/10">
-                                <th class="px-4 py-3 font-medium">Date</th>
-                                <th class="px-4 py-3 font-medium">Employee</th>
-                                <th class="px-4 py-3 font-medium">EID</th>
-                                <th class="px-4 py-3 font-medium">Department</th>
-                                <th class="px-4 py-3 font-medium">Clock In</th>
-                                <th class="px-4 py-3 font-medium">Clock Out</th>
-                                <th class="px-4 py-3 font-medium">Status</th>
-                                <th class="px-4 py-3 font-medium">Remarks</th>
-                                <th class="px-4 py-3 font-medium">Clock In Location</th>
-                                <th class="px-4 py-3 font-medium">Clock Out Location</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($attendanceLogs as $attendance)
-                                <tr class="border-b border-white/10 hover:bg-white/5">
-                                    <td class="px-4 py-3">{{ \Carbon\Carbon::parse($attendance->date)->format('Y-m-d') }}</td>
-                                    <td class="px-4 py-3 text-white font-medium">{{ $attendance->user?->name ?? 'Unknown' }}</td>
-                                    <td class="px-4 py-3">{{ $attendance->user?->eid ?? '-' }}</td>
-                                    <td class="px-4 py-3">{{ $attendance->user?->department ?? '-' }}</td>
-                                    <td class="px-4 py-3">{{ $attendance->clock_in ? \Carbon\Carbon::parse($attendance->clock_in)->format('h:i A') : '--' }}</td>
-                                    <td class="px-4 py-3">{{ $attendance->clock_out ? \Carbon\Carbon::parse($attendance->clock_out)->format('h:i A') : '--' }}</td>
-                                    <td class="px-4 py-3">{{ ucfirst((string) $attendance->status) }}</td>
-                                    <td class="px-4 py-3">{{ $attendance->remarks ?: '-' }}</td>
-                                    <td class="px-4 py-3">{{ $attendance->clockIn_address ?: '-' }}</td>
-                                    <td class="px-4 py-3">{{ $attendance->clockOut_address ?: '-' }}</td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="10" class="px-4 py-10 text-center text-white/60">No attendance logs found for the selected filters.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+            <main class="employee-main">
+                <div class="mb-6">
+                    <h1 class="font-black tracking-tight text-white" style="font-size: 32px; line-height: 1.1;">MS Dashboard</h1>
                 </div>
 
-                <div class="mt-6">
-                    {{ $attendanceLogs->links() }}
-                </div>
+                <div class="mb-8 grid w-full grid-cols-1 gap-6 md:grid-cols-3">
+                <a href="{{ route('ms.staff.directory') }}" class="group relative overflow-hidden rounded-2xl bg-amber-700 p-8 text-white shadow-lg hover:shadow-xl transition flex items-center gap-6 border-2 border-amber-800">
+                    <div class="flex h-20 w-20 items-center justify-center rounded-lg bg-amber-900 text-4xl flex-shrink-0">👥</div>
+                    <div class="flex-grow">
+                        <h2 class="text-2xl font-bold leading-tight">Total Staff</h2>
+                        <p class="mt-1 text-sm text-white/90">View staff directory</p>
+                    </div>
+                    <p class="text-4xl font-black flex-shrink-0">{{ number_format((int) ($msQuickLinks['total_staff'] ?? 0)) }}</p>
+                </a>
+
+                <a href="{{ route('ms.leave.requests') }}#leave-requests" class="group relative overflow-hidden rounded-2xl bg-amber-700 p-8 text-white shadow-lg hover:shadow-xl transition flex items-center gap-6 border-2 border-amber-800">
+                    <div class="flex h-20 w-20 items-center justify-center rounded-lg bg-amber-900 text-4xl flex-shrink-0">⏳</div>
+                    <div class="flex-grow">
+                        <h2 class="text-2xl font-bold leading-tight">Pending</h2>
+                        <p class="mt-1 text-sm text-white/90">Requests awaiting your action</p>
+                    </div>
+                    <p class="text-4xl font-black flex-shrink-0">{{ number_format((int) ($msQuickLinks['pending'] ?? 0)) }}</p>
+                </a>
+
+                <a href="{{ route('ms.leave.requests') }}#leave-requests" class="group relative overflow-hidden rounded-2xl bg-amber-700 p-8 text-white shadow-lg hover:shadow-xl transition flex items-center gap-6 border-2 border-amber-800">
+                    <div class="flex h-20 w-20 items-center justify-center rounded-lg bg-amber-900 text-4xl flex-shrink-0">📋</div>
+                    <div class="flex-grow">
+                        <h2 class="text-2xl font-bold leading-tight">Approved Leaves</h2>
+                        <p class="mt-1 text-sm text-white/90">Recently approved</p>
+                    </div>
+                    <p class="text-4xl font-black flex-shrink-0">{{ number_format((int) ($msQuickLinks['approved'] ?? 0)) }}</p>
+                </a>
+
+                <a href="{{ route('adhoc.requests') }}" class="group relative overflow-hidden rounded-2xl bg-amber-700 p-8 text-white shadow-lg hover:shadow-xl transition flex items-center gap-6 border-2 border-amber-800">
+                    <div class="flex h-20 w-20 items-center justify-center rounded-lg bg-amber-900 text-4xl flex-shrink-0">📌</div>
+                    <div class="flex-grow">
+                        <h2 class="text-2xl font-bold leading-tight">Adhoc Requests</h2>
+                        <p class="mt-1 text-sm text-white/90">Manage adhoc duty requests</p>
+                    </div>
+                    <p class="text-4xl font-black flex-shrink-0">{{ number_format((int) ($msQuickLinks['adhoc_requests'] ?? 0)) }}</p>
+                </a>
+
+                <a href="{{ route('ms.leave.requests') }}#leave-requests" class="group relative overflow-hidden rounded-2xl bg-amber-700 p-8 text-white shadow-lg hover:shadow-xl transition flex items-center gap-6 border-2 border-amber-800">
+                    <div class="flex h-20 w-20 items-center justify-center rounded-lg bg-amber-900 text-4xl flex-shrink-0">❌</div>
+                    <div class="flex-grow">
+                        <h2 class="text-2xl font-bold leading-tight">Rejected</h2>
+                        <p class="mt-1 text-sm text-white/90">Requests you rejected</p>
+                    </div>
+                    <p class="text-4xl font-black flex-shrink-0">{{ number_format((int) ($msQuickLinks['rejected'] ?? 0)) }}</p>
+                </a>
+
+                <a href="{{ route('tour.records') }}" class="group relative overflow-hidden rounded-2xl bg-amber-700 p-8 text-white shadow-lg hover:shadow-xl transition flex items-center gap-6 border-2 border-amber-800">
+                    <div class="flex h-20 w-20 items-center justify-center rounded-lg bg-amber-900 text-4xl flex-shrink-0">🧭</div>
+                    <div class="flex-grow">
+                        <h2 class="text-2xl font-bold leading-tight">Staff On Tour</h2>
+                        <p class="mt-1 text-sm text-white/90">Current tours in your depts</p>
+                    </div>
+                    <p class="text-4xl font-black flex-shrink-0">{{ number_format((int) ($msQuickLinks['staff_on_tour'] ?? 0)) }}</p>
+                </a>
             </div>
+
+            </main>
         </div>
     </div>
 @endsection
+
+@push('styles')
+<style>
+    .employee-page {
+        min-height: 100vh;
+    }
+
+    .employee-layout {
+        display: flex;
+        min-height: 100vh;
+        max-width: 1700px;
+        margin: 0 auto;
+    }
+
+    .employee-sidebar {
+        width: 280px;
+        min-width: 280px;
+        background: #2f3f4a;
+        padding: 24px 20px;
+    }
+
+    .employee-profile {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+
+    .employee-avatar-image,
+    .employee-avatar-fallback {
+        width: 48px;
+        height: 48px;
+        border-radius: 999px;
+        object-fit: cover;
+    }
+
+    .employee-avatar-fallback {
+        background: #f97316;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+    }
+
+    .employee-profile-meta h2 {
+        margin: 0;
+        color: #fff;
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1.1;
+    }
+
+    .employee-profile-meta p {
+        margin: 2px 0 0;
+        color: #cbd5e1;
+        font-size: 13px;
+    }
+
+    .employee-nav {
+        display: grid;
+        gap: 6px;
+    }
+
+    .employee-nav a,
+    .employee-nav span {
+        display: block;
+        padding: 10px 12px;
+        border-radius: 8px;
+        color: #e2e8f0;
+        text-decoration: none;
+        font-size: 16px;
+        font-weight: 500;
+    }
+
+    .employee-nav a:hover {
+        background: rgba(148, 163, 184, 0.18);
+    }
+
+    .employee-nav a.active {
+        background: rgba(20, 184, 166, 0.22);
+        color: #fff;
+    }
+
+    .employee-nav span.disabled {
+        color: #94a3b8;
+    }
+
+    .sidebar-logout-form {
+        margin-top: 6px;
+    }
+
+    .logout-btn {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: #e2e8f0;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        text-align: left;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .logout-btn:hover {
+        background: rgba(148, 163, 184, 0.18);
+        color: #fff;
+    }
+
+    .employee-main {
+        flex: 1;
+        padding: 20px;
+    }
+
+    @media (max-width: 900px) {
+        .employee-layout {
+            display: block;
+        }
+
+        .employee-sidebar {
+            width: 100%;
+            min-width: 0;
+        }
+    }
+</style>
+@endpush

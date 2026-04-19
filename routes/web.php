@@ -64,6 +64,7 @@ Route::middleware('auth:web')->group(function () {
     Route::get('/hod/staff-list', [AuthController::class, 'hodStaffList'])->name('hod.staff.list');
     Route::get('/ms/leave-requests', [AuthController::class, 'msLeaveRequests'])->name('ms.leave.requests');
     Route::get('/ms/attendance-logs', [AuthController::class, 'msAttendanceLogs'])->name('ms.attendance.logs');
+    Route::get('/ms/staff-directory', [AuthController::class, 'msStaffDirectory'])->name('ms.staff.directory');
     Route::post('/notifications/{notification}/read', [AuthController::class, 'markNotificationAsRead'])->name('notifications.markAsRead');
     Route::post('/ms/leave-requests/{leaveRequest}/action', [AuthController::class, 'msLeaveRequestAction'])->name('ms.leave.requests.action');
     Route::post('/hod/leave-requests/{leaveRequest}/action', [AuthController::class, 'hodLeaveRequestAction'])->name('hod.leave.requests.action');

@@ -27,22 +27,16 @@
                     <a href="{{ route('dashboard') }}">My Dashboard</a>
 
                     @if($isMs)
-                        <a href="{{ route('ms.leave.requests') }}">MS Dashboard</a>
-                    @else
-                        <span class="disabled">MS Dashboard</span>
+                        <a href="{{ route('ms.leave.requests') }}" class="font-semibold" style="color: #fbbf24;">MS Dashboard</a>
                     @endif
 
-                    @if($isHod)
-                        <a href="{{ route('hod.leave.requests') }}" class="leave-approve-link active" style="position:relative; display:block;">
-                            <span style="display:inline-block;">Leave Approve</span>
-                            @if(!empty($leaveApproveCount) && $leaveApproveCount > 0)
-                                <span class="leave-approve-badge" style="position:absolute; right:16px; top:50%; transform:translateY(-50%); background:#fff; color:#2f3f4a; display:inline-flex; align-items:center; justify-content:center; border-radius:16px; font-size:14px; font-weight:700; box-shadow:0 1px 4px rgba(0,0,0,0.08); padding:0 10px; height:auto; min-width:0;">{{ $leaveApproveCount }}</span>
-                            @endif
-                        </a>
-                        <a href="{{ route('hod.staff.list') }}">Staff List</a>
-                    @else
-                        <span class="disabled">Leave Approve</span>
-                    @endif
+                    <a href="{{ route('hod.leave.requests') }}" class="leave-approve-link active" style="position:relative; display:block;">
+                        <span style="display:inline-block;">Leave Approve</span>
+                        @if(!empty($leaveApproveCount) && $leaveApproveCount > 0)
+                            <span class="leave-approve-badge" style="position:absolute; right:16px; top:50%; transform:translateY(-50%); background:#fff; color:#2f3f4a; display:inline-flex; align-items:center; justify-content:center; border-radius:16px; font-size:14px; font-weight:700; box-shadow:0 1px 4px rgba(0,0,0,0.08); padding:0 10px; height:auto; min-width:0;">{{ $leaveApproveCount }}</span>
+                        @endif
+                    </a>
+                    <a href="{{ route('hod.staff.list') }}">Staff List</a>
 
                     <a href="{{ route('attendance.history') }}">Attendance</a>
                     <a href="{{ route('leave.create') }}">Leave</a>
